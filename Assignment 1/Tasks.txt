@@ -1,0 +1,24 @@
+Global
+[DONE] Use single clock x in global declarations (Not possible) 2023-05-08
+
+Create Main Control
+- Move the elevator to the target floor 
+- Send out a served once the elevator has reached that floor. 
+- Control the engine and the cabin_doors.
+
+Engine
+- The engine can be instructed to move up or down
+- Or to stop. 
+- Once the engine starts moving, it will start sensors. 
+- Each time the elevator reaches a floor, these sensors will send a reached_floor to the MainControl. 
+- When the elevator is moving up or down, the floor sensors indicate when a new floor is reached (Note that the sensors do not tell the floor number)
+- It is the task of MainControl to keep track of its current position. 
+
+Doors
+- When the destination floor is reached, MainControl should stop the engine and open the door. 
+- Once the doors are open, the served signal can be sent to the RequestHandler.
+- The cabin_doors can be instructed to open or close. 
+- Each floor has a protecting_door that is closed by default, and that should be open only when the elevator is standing still at that floor. 
+- When the cabin_door is given the signal to close, they will first close the protecting doors of the current floor. 
+- Once these are closed, the cabin_door will be closed. 
+- For opening, it is similar. Note that the elevator cabin always waits for passengers in a state where its cabin door and the protecting door are open.
