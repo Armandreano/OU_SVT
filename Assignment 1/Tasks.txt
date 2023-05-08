@@ -1,5 +1,5 @@
 Global
-[DONE] Use single clock x in global declarations (Not possible) 2023-05-08
+[DONE]- Use single clock x in global declarations (Not possible) 2023-05-08
 
 Create Main Control
 - Move the elevator to the target floor 
@@ -16,9 +16,9 @@ Engine
 
 Doors
 - When the destination floor is reached, MainControl should stop the engine and open the door. 
-- Once the doors are open, the served signal can be sent to the RequestHandler.
-- The cabin_doors can be instructed to open or close. 
+[DONE] - Once the doors are open, the served signal can be sent to the RequestHandler. 2023-05-08
+[DONE] - The cabin_doors can be instructed to open or close. 2023-05-08
 - Each floor has a protecting_door that is closed by default, and that should be open only when the elevator is standing still at that floor. 
-- When the cabin_door is given the signal to close, they will first close the protecting doors of the current floor. 
-- Once these are closed, the cabin_door will be closed. 
+[DONE] - When the cabin_door is given the signal to close, they will first close the protecting doors of the current floor. 
+[DONE] - Once these are closed, the cabin_door will be closed. 
 - For opening, it is similar. Note that the elevator cabin always waits for passengers in a state where its cabin door and the protecting door are open.

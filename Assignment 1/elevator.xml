@@ -7,13 +7,12 @@
 const int N = 2;         // # floors
 typedef int[0,N-1] id_f; // floor id from 0 to N-1
 
-
+const int OPEN = 1;
+const int CLOSED = 0;
 
 // cabin door channels and constants
 chan open_door, close_door, door_open, door_closed; // channels for a door
 const int door_time = 2;     // time to open or close the door
-
-
 
 // protecting door channels and constants
 chan open_pdoor[id_f], close_pdoor[id_f], pdoor_open[id_f], pdoor_closed[id_f]; // channels for a door
@@ -26,6 +25,8 @@ chan stop, move_down, move_up;
 const int floor_time = 1; // time to travel one floor
 chan start_sensors,stop_sensors,reach_floor;
 
+// To ensure that passengers can get in and out before the doors close
+int passenger_wait_time = 10;
 
 // button channels
 chan req[id_f];
@@ -40,7 +41,9 @@ id_f current_floor = 0;
 // The floor to which the main control is requested to go to.
 // This variable is just used for communication between the request handler and the main control.
 // Therefore, we can declare it meta (i.e., not part of the state).
-meta id_f target_floor;</declaration>
+meta id_f target_floor;
+
+</declaration>
 	<template>
 		<name>engine</name>
 		<location id="id0" x="16" y="-168">
@@ -80,8 +83,7 @@ meta id_f target_floor;</declaration>
 		<transition>
 			<source ref="id3"/>
 			<target ref="id2"/>
-			<label kind="synchronisation" x="-200" y="-72">stop?</label>
-			<nail x="-216" y="-48"/>
+			<label kind="synchronisation" x="-204" y="-42">stop?</label>
 			<nail x="-112" y="-48"/>
 		</transition>
 		<transition>
@@ -92,8 +94,7 @@ meta id_f target_floor;</declaration>
 		<transition>
 			<source ref="id4"/>
 			<target ref="id2"/>
-			<label kind="synchronisation" x="-64" y="-64">stop?</label>
-			<nail x="-40" y="-48"/>
+			<label kind="synchronisation" x="-59" y="-42">stop?</label>
 			<nail x="-112" y="-48"/>
 		</transition>
 		<transition>
@@ -354,38 +355,135 @@ dequeue()</label>
 	</template>
 	<template>
 		<name>dummy_MainControl</name>
-		<declaration>id_f dest_floor = 1; // the current destination</declaration>
-		<location id="id18" x="-1040" y="-256">
+		<declaration>id_f dest_floor = 1; // the current destination
+
+// for the door timings
+clock x;
+int floors_to_travel = 0;</declaration>
+		<location id="id18" x="-314" y="-42">
 		</location>
-		<location id="id19" x="-1160" y="-256">
+		<location id="id19" x="-1215" y="-255">
+			<label kind="invariant" x="-1246" y="-237">x &lt;= door_time</label>
+			<label kind="comments" x="-1411" y="-382">The door has to wait for the outer and inner doors to close</label>
+		</location>
+		<location id="id20" x="-1343" y="-255">
 			<committed/>
 		</location>
-		<location id="id20" x="-640" y="-256">
+		<location id="id21" x="-577" y="-255">
 		</location>
-		<location id="id21" x="-840" y="-256">
+		<location id="id22" x="-764" y="-255">
+			<name x="-774" y="-245">idle</name>
 		</location>
-		<init ref="id19"/>
+		<location id="id23" x="-1343" y="-42">
+		</location>
+		<location id="id24" x="-314" y="-255">
+			<name x="-289" y="-272">floor_change</name>
+			<label kind="invariant" x="-289" y="-255">x &lt;= door_time</label>
+		</location>
+		<location id="id25" x="-977" y="-255">
+			<label kind="invariant" x="-1062" y="-289">x &lt;= passenger_wait_time</label>
+			<label kind="comments" x="-1113" y="-314">Make sure passengers can enter and exit</label>
+		</location>
+		<location id="id26" x="-578" y="-42">
+		</location>
+		<init ref="id20"/>
+		<transition>
+			<source ref="id26"/>
+			<target ref="id26"/>
+			<label kind="synchronisation" x="-620" y="42">reach_floor?</label>
+			<label kind="assignment" x="-629" y="68">floors_to_travel += 
+floors_to_travel &lt; 0 ? 
+1 : -1</label>
+			<nail x="-510" y="68"/>
+			<nail x="-646" y="68"/>
+		</transition>
+		<transition>
+			<source ref="id26"/>
+			<target ref="id23"/>
+			<label kind="guard" x="-1037" y="-34">floors_to_travel == 0</label>
+			<label kind="synchronisation" x="-1037" y="-17">stop!</label>
+		</transition>
 		<transition>
 			<source ref="id18"/>
-			<target ref="id21"/>
-			<label kind="synchronisation" x="-992" y="-280">door_open?</label>
+			<target ref="id26"/>
+			<label kind="guard" x="-510" y="-110">floors_to_travel &lt; 0</label>
+			<label kind="synchronisation" x="-510" y="-93">move_down!</label>
+			<nail x="-365" y="-93"/>
+			<nail x="-527" y="-93"/>
+		</transition>
+		<transition>
+			<source ref="id18"/>
+			<target ref="id26"/>
+			<label kind="guard" x="-510" y="17">floors_to_travel &gt; 0</label>
+			<label kind="synchronisation" x="-493" y="0">move_up!</label>
+			<nail x="-357" y="17"/>
+			<nail x="-527" y="17"/>
+		</transition>
+		<transition>
+			<source ref="id25"/>
+			<target ref="id22"/>
+			<label kind="guard" x="-960" y="-255">x &gt;= passenger_wait_time</label>
 		</transition>
 		<transition>
 			<source ref="id19"/>
-			<target ref="id18"/>
-			<label kind="synchronisation" x="-1136" y="-280">open_door!</label>
+			<target ref="id25"/>
+			<label kind="synchronisation" x="-1122" y="-255">door_open?</label>
+			<label kind="assignment" x="-1105" y="-238">x := 0</label>
 		</transition>
 		<transition>
-			<source ref="id20"/>
-			<target ref="id21"/>
-			<label kind="synchronisation" x="-752" y="-360">served!</label>
-			<nail x="-840" y="-400"/>
+			<source ref="id19"/>
+			<target ref="id19"/>
+			<label kind="assignment" x="-1233" y="-357">x := 0</label>
+			<nail x="-1279" y="-330"/>
+			<nail x="-1152" y="-330"/>
 		</transition>
 		<transition>
 			<source ref="id21"/>
+			<target ref="id22"/>
+			<label kind="guard" x="-747" y="-348">dest_floor == current_floor</label>
+			<label kind="synchronisation" x="-697" y="-323">served!</label>
+			<label kind="comments" x="-773" y="-374">Destination is the same as soruce</label>
+			<nail x="-577" y="-323"/>
+			<nail x="-764" y="-323"/>
+		</transition>
+		<transition>
+			<source ref="id24"/>
+			<target ref="id18"/>
+			<label kind="synchronisation" x="-297" y="-170">door_closed?</label>
+		</transition>
+		<transition>
+			<source ref="id24"/>
+			<target ref="id24"/>
+			<label kind="assignment" x="-331" y="-357">x := 0</label>
+			<label kind="comments" x="-493" y="-382">The door has to wait for the outer and inner doors to close</label>
+			<nail x="-382" y="-331"/>
+			<nail x="-254" y="-331"/>
+		</transition>
+		<transition>
+			<source ref="id21"/>
+			<target ref="id24"/>
+			<label kind="guard" x="-544" y="-297">dest_floor != current_floor</label>
+			<label kind="synchronisation" x="-543" y="-280">close_door!</label>
+			<label kind="assignment" x="-544" y="-255">x := 0,
+floors_to_travel := 
+dest_floor - current_floor</label>
+		</transition>
+		<transition>
+			<source ref="id23"/>
 			<target ref="id20"/>
-			<label kind="synchronisation" x="-816" y="-280">go?</label>
-			<label kind="assignment" x="-816" y="-248">dest_floor := target_floor,
+			<label kind="synchronisation" x="-1402" y="-195">served!</label>
+		</transition>
+		<transition>
+			<source ref="id20"/>
+			<target ref="id19"/>
+			<label kind="synchronisation" x="-1309" y="-281">open_door!</label>
+			<label kind="assignment" x="-1295" y="-256">x := 0</label>
+		</transition>
+		<transition>
+			<source ref="id22"/>
+			<target ref="id21"/>
+			<label kind="synchronisation" x="-696" y="-280">go?</label>
+			<label kind="assignment" x="-739" y="-248">dest_floor := target_floor,
 target_floor := 0</label>
 		</transition>
 	</template>
@@ -393,24 +491,24 @@ target_floor := 0</label>
 		<name>protecting_door</name>
 		<parameter>id_f i</parameter>
 		<declaration>clock x;</declaration>
-		<location id="id22" x="-112" y="8">
+		<location id="id27" x="-112" y="8">
 			<name x="-144" y="24">executing_open</name>
 			<label kind="invariant" x="-144" y="40">x &lt;= door_time</label>
 		</location>
-		<location id="id23" x="40" y="-96">
+		<location id="id28" x="40" y="-96">
 			<name x="56" y="-104">closed</name>
 		</location>
-		<location id="id24" x="-112" y="-120">
+		<location id="id29" x="-112" y="-120">
 			<name x="-96" y="-120">executing</name>
 			<label kind="invariant" x="-144" y="-104">x &lt;= door_time</label>
 		</location>
-		<location id="id25" x="-232" y="-104">
+		<location id="id30" x="-232" y="-104">
 			<name x="-280" y="-112">open</name>
 		</location>
-		<init ref="id23"/>
+		<init ref="id28"/>
 		<transition>
-			<source ref="id22"/>
-			<target ref="id25"/>
+			<source ref="id27"/>
+			<target ref="id30"/>
 			<label kind="guard" x="-352" y="-80">x &gt;= door_time</label>
 			<label kind="synchronisation" x="-352" y="-64">pdoor_open[i]!</label>
 			<label kind="assignment" x="-352" y="-48">x := 0</label>
@@ -418,16 +516,16 @@ target_floor := 0</label>
 			<nail x="-232" y="-80"/>
 		</transition>
 		<transition>
-			<source ref="id23"/>
-			<target ref="id22"/>
+			<source ref="id28"/>
+			<target ref="id27"/>
 			<label kind="synchronisation" x="48" y="-64">open_pdoor[i]?</label>
 			<label kind="assignment" x="48" y="-32">x := 0</label>
 			<nail x="40" y="-32"/>
 			<nail x="40" y="8"/>
 		</transition>
 		<transition>
-			<source ref="id24"/>
-			<target ref="id23"/>
+			<source ref="id29"/>
+			<target ref="id28"/>
 			<label kind="guard" x="-88" y="-200">x &gt;= door_time</label>
 			<label kind="synchronisation" x="-88" y="-184">pdoor_closed[i]!</label>
 			<label kind="assignment" x="-88" y="-168">x := 0</label>
@@ -435,8 +533,8 @@ target_floor := 0</label>
 			<nail x="40" y="-152"/>
 		</transition>
 		<transition>
-			<source ref="id25"/>
-			<target ref="id24"/>
+			<source ref="id30"/>
+			<target ref="id29"/>
 			<label kind="synchronisation" x="-208" y="-192">close_pdoor[i]?</label>
 			<label kind="assignment" x="-200" y="-168">x := 0</label>
 			<nail x="-232" y="-152"/>
