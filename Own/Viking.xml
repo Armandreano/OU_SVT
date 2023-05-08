@@ -1,0 +1,116 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.1//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_2.dtd'>
+<nta>
+	<declaration>// Place global declarations here.
+clock timer;
+int [0,1] L = 0;
+chan release, take;</declaration>
+	<template>
+		<name x="5" y="5">Viking</name>
+		<parameter>const int delay</parameter>
+		<declaration>// Place local declarations here.
+clock x;</declaration>
+		<location id="id0" x="153" y="119">
+			<name x="76" y="110">unsafe</name>
+		</location>
+		<location id="id1" x="289" y="-17">
+			<name x="263" y="-85">safecross</name>
+			<label kind="invariant" x="263" y="-59">x &lt;= delay</label>
+		</location>
+		<location id="id2" x="425" y="119">
+			<name x="442" y="110">safe</name>
+		</location>
+		<location id="id3" x="289" y="255">
+			<name x="263" y="297">unsafecross</name>
+			<label kind="invariant" x="272" y="272">x &lt;= delay</label>
+		</location>
+		<init ref="id0"/>
+		<transition>
+			<source ref="id3"/>
+			<target ref="id0"/>
+			<label kind="guard" x="153" y="187">x == delay</label>
+			<label kind="synchronisation" x="161" y="204">release!</label>
+		</transition>
+		<transition>
+			<source ref="id2"/>
+			<target ref="id3"/>
+			<label kind="guard" x="374" y="212">L == 1</label>
+			<label kind="synchronisation" x="374" y="195">take!</label>
+			<label kind="assignment" x="374" y="178">x := 0</label>
+		</transition>
+		<transition>
+			<source ref="id1"/>
+			<target ref="id2"/>
+			<label kind="guard" x="374" y="17">x == delay</label>
+			<label kind="synchronisation" x="374" y="34">release!</label>
+		</transition>
+		<transition>
+			<source ref="id0"/>
+			<target ref="id1"/>
+			<label kind="guard" x="170" y="8">L == 0</label>
+			<label kind="synchronisation" x="170" y="25">take!</label>
+			<label kind="assignment" x="170" y="42">x := 0</label>
+		</transition>
+	</template>
+	<template>
+		<name>Torch</name>
+		<location id="id4" x="-119" y="-51">
+			<name x="-161" y="-59">free</name>
+		</location>
+		<location id="id5" x="17" y="-187">
+			<name x="7" y="-221">one</name>
+			<urgent/>
+		</location>
+		<location id="id6" x="17" y="85">
+		</location>
+		<location id="id7" x="144" y="-51">
+			<name x="161" y="-59">two</name>
+		</location>
+		<init ref="id4"/>
+		<transition>
+			<source ref="id5"/>
+			<target ref="id6"/>
+		</transition>
+		<transition>
+			<source ref="id6"/>
+			<target ref="id4"/>
+			<label kind="synchronisation" x="-110" y="17">release?</label>
+			<label kind="assignment" x="-110" y="34">L = 1 - L</label>
+		</transition>
+		<transition>
+			<source ref="id7"/>
+			<target ref="id6"/>
+			<label kind="synchronisation" x="93" y="17">release?</label>
+		</transition>
+		<transition>
+			<source ref="id5"/>
+			<target ref="id7"/>
+			<label kind="synchronisation" x="93" y="-144">take?</label>
+		</transition>
+		<transition>
+			<source ref="id4"/>
+			<target ref="id5"/>
+			<label kind="synchronisation" x="-102" y="-144">take?</label>
+		</transition>
+	</template>
+	<system>// Place template instantiations here.
+viking1 = Viking(5);
+viking2 = Viking(10);
+viking3 = Viking(15);
+viking4 = Viking(20);
+viking5 = Viking(25);
+torch = Torch();
+// List one or more processes to be composed into a system.
+system viking1, viking2, viking3, viking4, viking5, torch;
+    </system>
+	<queries>
+		<query>
+			<formula>A[] not deadlock</formula>
+			<comment></comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; (viking1.safe and viking2.safe and viking3.safe and viking4.safe and viking5.safe)</formula>
+			<comment></comment>
+		</query>
+	</queries>
+</nta>

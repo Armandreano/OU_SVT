@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.1//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_2.dtd'>
+<nta>
+	<declaration>// Place global declarations here.
+chan start, stop, close, cook, open;</declaration>
+	<template>
+		<name x="5" y="5">Oven</name>
+		<declaration>// Place local declarations here.
+clock x;</declaration>
+		<location id="id0" x="-663" y="-119">
+			<name x="-671" y="-161">Idle</name>
+		</location>
+		<location id="id1" x="-425" y="-119">
+			<name x="-459" y="-161">door_closed</name>
+		</location>
+		<location id="id2" x="-187" y="-119">
+			<name x="-204" y="-161">starting</name>
+			<label kind="invariant" x="-197" y="-102">x &lt;= 1</label>
+			<label kind="comments" x="-197" y="-60">1 is the start time of the engine.</label>
+		</location>
+		<location id="id3" x="51" y="-119">
+			<name x="25" y="-161">cooking</name>
+		</location>
+		<init ref="id0"/>
+		<transition>
+			<source ref="id3"/>
+			<target ref="id1"/>
+			<label kind="synchronisation" x="-212" y="-17">stop!</label>
+			<nail x="51" y="17"/>
+			<nail x="-425" y="17"/>
+		</transition>
+		<transition>
+			<source ref="id2"/>
+			<target ref="id3"/>
+			<label kind="synchronisation" x="-85" y="-144">cook!</label>
+		</transition>
+		<transition>
+			<source ref="id1"/>
+			<target ref="id2"/>
+			<label kind="synchronisation" x="-331" y="-144">start?</label>
+			<label kind="assignment" x="-340" y="-110">x := 0</label>
+		</transition>
+		<transition>
+			<source ref="id0"/>
+			<target ref="id1"/>
+			<label kind="synchronisation" x="-603" y="-144">close?</label>
+		</transition>
+	</template>
+	<template>
+		<name>Environment</name>
+		<location id="id4" x="0" y="0">
+		</location>
+		<init ref="id4"/>
+		<transition>
+			<source ref="id4"/>
+			<target ref="id4"/>
+			<label kind="synchronisation" x="76" y="51">stop?</label>
+			<nail x="68" y="17"/>
+			<nail x="68" y="93"/>
+			<nail x="-42" y="93"/>
+		</transition>
+		<transition>
+			<source ref="id4"/>
+			<target ref="id4"/>
+			<label kind="synchronisation" x="-119" y="17">cook?</label>
+			<nail x="-68" y="-34"/>
+			<nail x="-68" y="93"/>
+		</transition>
+		<transition>
+			<source ref="id4"/>
+			<target ref="id4"/>
+			<label kind="synchronisation" x="-17" y="-110">start!</label>
+			<nail x="76" y="-85"/>
+			<nail x="-68" y="-85"/>
+		</transition>
+		<transition>
+			<source ref="id4"/>
+			<target ref="id4"/>
+			<label kind="synchronisation" x="93" y="-42">close!</label>
+			<nail x="76" y="0"/>
+			<nail x="76" y="-76"/>
+		</transition>
+	</template>
+	<system>// Place template instantiations here.
+oven = Oven();
+env = Environment();
+// List one or more processes to be composed into a system.
+system oven, env;
+    </system>
+	<queries>
+		<query>
+			<formula>A[] not deadlock</formula>
+			<comment></comment>
+		</query>
+	</queries>
+</nta>
