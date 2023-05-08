@@ -357,16 +357,16 @@ dequeue()</label>
 		<name>dummy_MainControl</name>
 		<declaration>id_f dest_floor = 1; // the current destination
 
-// for the door timings
-clock x;
-int floors_to_travel = 0;</declaration>
-		<location id="id18" x="-314" y="-42">
+// Whether the elevator should move up or down
+int floors_to_travel = 0;
+
+// To make sure that the elevator can wait for passengers to enter and exit
+clock x;</declaration>
+		<location id="id18" x="-790" y="-42">
 		</location>
-		<location id="id19" x="-1215" y="-255">
-			<label kind="invariant" x="-1246" y="-237">x &lt;= door_time</label>
-			<label kind="comments" x="-1411" y="-382">The door has to wait for the outer and inner doors to close</label>
+		<location id="id19" x="-1181" y="-255">
 		</location>
-		<location id="id20" x="-1343" y="-255">
+		<location id="id20" x="-1309" y="-255">
 			<committed/>
 		</location>
 		<location id="id21" x="-577" y="-255">
@@ -374,50 +374,49 @@ int floors_to_travel = 0;</declaration>
 		<location id="id22" x="-764" y="-255">
 			<name x="-774" y="-245">idle</name>
 		</location>
-		<location id="id23" x="-1343" y="-42">
+		<location id="id23" x="-1309" y="-42">
 		</location>
-		<location id="id24" x="-314" y="-255">
-			<name x="-289" y="-272">floor_change</name>
-			<label kind="invariant" x="-289" y="-255">x &lt;= door_time</label>
+		<location id="id24" x="-578" y="-42">
+			<name x="-552" y="-51">floor_change</name>
 		</location>
 		<location id="id25" x="-977" y="-255">
 			<label kind="invariant" x="-1062" y="-289">x &lt;= passenger_wait_time</label>
 			<label kind="comments" x="-1113" y="-314">Make sure passengers can enter and exit</label>
 		</location>
-		<location id="id26" x="-578" y="-42">
+		<location id="id26" x="-1054" y="-42">
 		</location>
 		<init ref="id20"/>
 		<transition>
 			<source ref="id26"/>
 			<target ref="id26"/>
-			<label kind="synchronisation" x="-620" y="42">reach_floor?</label>
-			<label kind="assignment" x="-629" y="68">floors_to_travel += 
+			<label kind="synchronisation" x="-1088" y="42">reach_floor?</label>
+			<label kind="assignment" x="-1105" y="68">floors_to_travel += 
 floors_to_travel &lt; 0 ? 
 1 : -1</label>
-			<nail x="-510" y="68"/>
-			<nail x="-646" y="68"/>
+			<nail x="-986" y="68"/>
+			<nail x="-1122" y="68"/>
 		</transition>
 		<transition>
 			<source ref="id26"/>
 			<target ref="id23"/>
-			<label kind="guard" x="-1037" y="-34">floors_to_travel == 0</label>
-			<label kind="synchronisation" x="-1037" y="-17">stop!</label>
+			<label kind="guard" x="-1258" y="-42">floors_to_travel == 0</label>
+			<label kind="synchronisation" x="-1198" y="-59">stop!</label>
 		</transition>
 		<transition>
 			<source ref="id18"/>
 			<target ref="id26"/>
-			<label kind="guard" x="-510" y="-110">floors_to_travel &lt; 0</label>
-			<label kind="synchronisation" x="-510" y="-93">move_down!</label>
-			<nail x="-365" y="-93"/>
-			<nail x="-527" y="-93"/>
+			<label kind="guard" x="-986" y="-110">floors_to_travel &lt; 0</label>
+			<label kind="synchronisation" x="-986" y="-93">move_down!</label>
+			<nail x="-841" y="-93"/>
+			<nail x="-1003" y="-93"/>
 		</transition>
 		<transition>
 			<source ref="id18"/>
 			<target ref="id26"/>
-			<label kind="guard" x="-510" y="17">floors_to_travel &gt; 0</label>
-			<label kind="synchronisation" x="-493" y="0">move_up!</label>
-			<nail x="-357" y="17"/>
-			<nail x="-527" y="17"/>
+			<label kind="guard" x="-986" y="17">floors_to_travel &gt; 0</label>
+			<label kind="synchronisation" x="-986" y="0">move_up!</label>
+			<nail x="-833" y="17"/>
+			<nail x="-1003" y="17"/>
 		</transition>
 		<transition>
 			<source ref="id25"/>
@@ -428,14 +427,7 @@ floors_to_travel &lt; 0 ?
 			<source ref="id19"/>
 			<target ref="id25"/>
 			<label kind="synchronisation" x="-1122" y="-255">door_open?</label>
-			<label kind="assignment" x="-1105" y="-238">x := 0</label>
-		</transition>
-		<transition>
-			<source ref="id19"/>
-			<target ref="id19"/>
-			<label kind="assignment" x="-1233" y="-357">x := 0</label>
-			<nail x="-1279" y="-330"/>
-			<nail x="-1152" y="-330"/>
+			<label kind="assignment" x="-1122" y="-272">x := 0</label>
 		</transition>
 		<transition>
 			<source ref="id21"/>
@@ -449,42 +441,33 @@ floors_to_travel &lt; 0 ?
 		<transition>
 			<source ref="id24"/>
 			<target ref="id18"/>
-			<label kind="synchronisation" x="-297" y="-170">door_closed?</label>
-		</transition>
-		<transition>
-			<source ref="id24"/>
-			<target ref="id24"/>
-			<label kind="assignment" x="-331" y="-357">x := 0</label>
-			<label kind="comments" x="-493" y="-382">The door has to wait for the outer and inner doors to close</label>
-			<nail x="-382" y="-331"/>
-			<nail x="-254" y="-331"/>
+			<label kind="synchronisation" x="-722" y="-42">door_closed?</label>
 		</transition>
 		<transition>
 			<source ref="id21"/>
 			<target ref="id24"/>
-			<label kind="guard" x="-544" y="-297">dest_floor != current_floor</label>
-			<label kind="synchronisation" x="-543" y="-280">close_door!</label>
-			<label kind="assignment" x="-544" y="-255">x := 0,
-floors_to_travel := 
+			<label kind="guard" x="-561" y="-170">dest_floor != current_floor</label>
+			<label kind="synchronisation" x="-560" y="-153">close_door!</label>
+			<label kind="assignment" x="-561" y="-128">floors_to_travel := 
 dest_floor - current_floor</label>
+			<label kind="comments" x="-561" y="-213">Calculate direction to travel in 
+(target - origin)</label>
 		</transition>
 		<transition>
 			<source ref="id23"/>
 			<target ref="id20"/>
-			<label kind="synchronisation" x="-1402" y="-195">served!</label>
+			<label kind="synchronisation" x="-1300" y="-161">served!</label>
 		</transition>
 		<transition>
 			<source ref="id20"/>
 			<target ref="id19"/>
-			<label kind="synchronisation" x="-1309" y="-281">open_door!</label>
-			<label kind="assignment" x="-1295" y="-256">x := 0</label>
+			<label kind="synchronisation" x="-1283" y="-255">open_door!</label>
 		</transition>
 		<transition>
 			<source ref="id22"/>
 			<target ref="id21"/>
 			<label kind="synchronisation" x="-696" y="-280">go?</label>
-			<label kind="assignment" x="-739" y="-248">dest_floor := target_floor,
-target_floor := 0</label>
+			<label kind="assignment" x="-739" y="-248">dest_floor := target_floor</label>
 		</transition>
 	</template>
 	<template>
