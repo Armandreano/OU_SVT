@@ -24,4 +24,4 @@ Doors
 [DONE] 2023-05-08 - For opening, it is similar. Note that the elevator cabin always waits for passengers in a state where its cabin door and the protecting door are open.
 
 Bugs:
-- Elevator does not move down to floor 0 (use absolute)
+[DONE] 2023-05-09 - Elevator does not move down to floor 0 (use absolute)
