@@ -361,37 +361,53 @@ dequeue()</label>
 int floors_to_travel = 0;
 
 // To make sure that the elevator can wait for passengers to enter and exit
-clock x;</declaration>
+clock x;
+
+// Update the floor based on the direction of travel
+void update_floor_change(){
+    // Calculate the direction the lift should be updated to and set value
+    current_floor += current_floor &gt; dest_floor ? -1 : 1;
+
+    // Update the floors that still need to be traversed
+    floors_to_travel -= 1;
+}</declaration>
 		<location id="id18" x="-790" y="-42">
+			<name x="-800" y="-76">choose_direction</name>
 		</location>
 		<location id="id19" x="-1181" y="-255">
+			<name x="-1224" y="-289">wait_for_door</name>
 		</location>
 		<location id="id20" x="-1309" y="-255">
+			<name x="-1343" y="-289">open_doors</name>
 			<committed/>
 		</location>
 		<location id="id21" x="-577" y="-255">
+			<name x="-552" y="-263">received_destination</name>
 		</location>
 		<location id="id22" x="-764" y="-255">
 			<name x="-774" y="-245">idle</name>
 		</location>
 		<location id="id23" x="-1309" y="-42">
+			<name x="-1343" y="-25">lift_stopped</name>
 		</location>
 		<location id="id24" x="-578" y="-42">
-			<name x="-552" y="-51">floor_change</name>
+			<name x="-552" y="-51">closing_doors</name>
 		</location>
 		<location id="id25" x="-977" y="-255">
+			<name x="-1020" y="-238">wait_for_passenger</name>
 			<label kind="invariant" x="-1062" y="-289">x &lt;= passenger_wait_time</label>
 			<label kind="comments" x="-1113" y="-314">Make sure passengers can enter and exit</label>
 		</location>
 		<location id="id26" x="-1054" y="-42">
+			<name x="-1130" y="-85">change_floors</name>
 		</location>
 		<init ref="id20"/>
 		<transition>
 			<source ref="id26"/>
 			<target ref="id26"/>
-			<label kind="guard" x="-1036" y="-21">floors_to_travel &gt; 0</label>
+			<label kind="guard" x="-1113" y="76">floors_to_travel &gt; 0</label>
 			<label kind="synchronisation" x="-1088" y="42">reach_floor?</label>
-			<label kind="assignment" x="-1113" y="68">floors_to_travel -= 1</label>
+			<label kind="assignment" x="-1113" y="93">update_floor_change()</label>
 			<nail x="-986" y="68"/>
 			<nail x="-1122" y="68"/>
 		</transition>
@@ -404,7 +420,7 @@ clock x;</declaration>
 		<transition>
 			<source ref="id18"/>
 			<target ref="id26"/>
-			<label kind="guard" x="-986" y="-110">target_floor &lt; dest_floor</label>
+			<label kind="guard" x="-986" y="-110">dest_floor &lt; current_floor</label>
 			<label kind="synchronisation" x="-986" y="-93">move_down!</label>
 			<nail x="-841" y="-93"/>
 			<nail x="-1003" y="-93"/>
