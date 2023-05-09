@@ -2,28 +2,27 @@
 <!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.1//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_2.dtd'>
 <nta>
 	<declaration>
-
 // constants and variable related to number of floors
 const int N = 2;         // # floors
 typedef int[0,N-1] id_f; // floor id from 0 to N-1
 
-const int OPEN = 1;
-const int CLOSED = 0;
+// Stolen definition from Floor declarations (above)
+const int L = 3;         // # lifts
+typedef int[0, L-1] id_e;// elevator ID from 0 to N-1
 
 // cabin door channels and constants
-chan open_door, close_door, door_open, door_closed; // channels for a door
+chan open_door[id_e], close_door[id_e], door_open[id_e], door_closed[id_e]; // channels for a door
 const int door_time = 2;     // time to open or close the door
 
 // protecting door channels and constants
 chan open_pdoor[id_f], close_pdoor[id_f], pdoor_open[id_f], pdoor_closed[id_f]; // channels for a door
 
 // engine channels
-chan stop, move_down, move_up;
-
+chan stop[id_e], move_down[id_e], move_up[id_e];
 
 // floor sensors channels and constants
 const int floor_time = 1; // time to travel one floor
-chan start_sensors,stop_sensors,reach_floor;
+chan start_sensors[id_e],stop_sensors[id_e],reach_floor[id_e];
 
 // To ensure that passengers can get in and out before the doors close
 int passenger_wait_time = 10;
@@ -32,7 +31,7 @@ int passenger_wait_time = 10;
 chan req[id_f];
 
 // communications between RequestHandler and MainControl
-chan go, served;
+chan go[id_e], served[id_e];
 
 // Place global declarations here.
 
@@ -46,61 +45,62 @@ meta id_f target_floor;
 </declaration>
 	<template>
 		<name>engine</name>
-		<location id="id0" x="16" y="-168">
+		<parameter>const id_e lift_id</parameter>
+		<location id="id0" x="51" y="-212">
 			<committed/>
 		</location>
-		<location id="id1" x="-256" y="-168">
+		<location id="id1" x="-306" y="-212">
 			<committed/>
 		</location>
-		<location id="id2" x="-112" y="-80">
+		<location id="id2" x="-127" y="-83">
 			<committed/>
 		</location>
-		<location id="id3" x="-256" y="-48">
-			<name x="-360" y="-80">moving_down</name>
+		<location id="id3" x="-306" y="-51">
+			<name x="-410" y="-83">moving_down</name>
 		</location>
-		<location id="id4" x="16" y="-48">
-			<name x="24" y="-80">moving_up</name>
+		<location id="id4" x="51" y="-51">
+			<name x="59" y="-83">moving_up</name>
 		</location>
-		<location id="id5" x="-112" y="-168">
-			<name x="-122" y="-198">Idle</name>
+		<location id="id5" x="-127" y="-212">
+			<name x="-137" y="-242">Idle</name>
 		</location>
 		<init ref="id5"/>
 		<transition>
 			<source ref="id0"/>
 			<target ref="id4"/>
-			<label kind="synchronisation" x="24" y="-128">start_sensors!</label>
+			<label kind="synchronisation" x="68" y="-153">start_sensors[lift_id]!</label>
 		</transition>
 		<transition>
 			<source ref="id1"/>
 			<target ref="id3"/>
-			<label kind="synchronisation" x="-248" y="-128">start_sensors!</label>
+			<label kind="synchronisation" x="-297" y="-153">start_sensors[lift_id]!</label>
 		</transition>
 		<transition>
 			<source ref="id2"/>
 			<target ref="id5"/>
-			<label kind="synchronisation" x="-104" y="-128">stop_sensors!</label>
+			<label kind="synchronisation" x="-119" y="-153">stop_sensors[lift_id]!</label>
 		</transition>
 		<transition>
 			<source ref="id3"/>
 			<target ref="id2"/>
-			<label kind="synchronisation" x="-204" y="-42">stop?</label>
-			<nail x="-112" y="-48"/>
+			<label kind="synchronisation" x="-255" y="-51">stop[lift_id]?</label>
+			<nail x="-127" y="-51"/>
 		</transition>
 		<transition>
 			<source ref="id5"/>
 			<target ref="id1"/>
-			<label kind="synchronisation" x="-224" y="-192">move_down?</label>
+			<label kind="synchronisation" x="-280" y="-238">move_down[lift_id]?</label>
 		</transition>
 		<transition>
 			<source ref="id4"/>
 			<target ref="id2"/>
-			<label kind="synchronisation" x="-59" y="-42">stop?</label>
-			<nail x="-112" y="-48"/>
+			<label kind="synchronisation" x="-85" y="-51">stop[lift_id]?</label>
+			<nail x="-127" y="-51"/>
 		</transition>
 		<transition>
 			<source ref="id5"/>
 			<target ref="id0"/>
-			<label kind="synchronisation" x="-80" y="-192">move_up?</label>
+			<label kind="synchronisation" x="-93" y="-238">move_up[lift_id]?</label>
 		</transition>
 	</template>
 	<template>
@@ -121,8 +121,8 @@ meta id_f target_floor;
 		</transition>
 	</template>
 	<template>
-		<name>dummy_RequestHandler</name>
-		<parameter>const int size</parameter>
+		<name>request_handler</name>
+		<parameter>const int size, const id_e lift_id</parameter>
 		<declaration>// The dummy request handler gets requests from the button.
 // When these are received, they are stored in the following local variable.
 id_f current_req;
@@ -212,7 +212,7 @@ bool is_full ()
 			<source ref="id8"/>
 			<target ref="id7"/>
 			<label kind="guard" x="-1657" y="-900">!is_empty()</label>
-			<label kind="synchronisation" x="-1657" y="-875">go!</label>
+			<label kind="synchronisation" x="-1657" y="-875">go[lift_id]!</label>
 			<label kind="assignment" x="-1657" y="-858">target_floor = front(), 
 dequeue()</label>
 		</transition>
@@ -229,13 +229,14 @@ dequeue()</label>
 		<transition>
 			<source ref="id7"/>
 			<target ref="id8"/>
-			<label kind="synchronisation" x="-1616" y="-688">served?</label>
+			<label kind="synchronisation" x="-1615" y="-688">served[lift_id]?</label>
 			<nail x="-1513" y="-697"/>
 			<nail x="-1683" y="-697"/>
 		</transition>
 	</template>
 	<template>
 		<name>floor_sensors</name>
+		<parameter>const id_e lift_id</parameter>
 		<declaration>clock x;</declaration>
 		<location id="id9" x="32" y="-24">
 			<name x="40" y="-72">moving</name>
@@ -248,7 +249,7 @@ dequeue()</label>
 		<transition>
 			<source ref="id9"/>
 			<target ref="id10"/>
-			<label kind="synchronisation" x="-120" y="-112">stop_sensors?</label>
+			<label kind="synchronisation" x="-120" y="-112">stop_sensors[lift_id]?</label>
 			<nail x="32" y="-88"/>
 			<nail x="-200" y="-88"/>
 		</transition>
@@ -256,7 +257,7 @@ dequeue()</label>
 			<source ref="id9"/>
 			<target ref="id9"/>
 			<label kind="guard" x="136" y="-24">x &gt;= floor_time</label>
-			<label kind="synchronisation" x="136" y="-8">reach_floor!</label>
+			<label kind="synchronisation" x="136" y="-8">reach_floor[lift_id]!</label>
 			<label kind="assignment" x="136" y="8">x := 0</label>
 			<nail x="128" y="-24"/>
 			<nail x="128" y="32"/>
@@ -264,12 +265,13 @@ dequeue()</label>
 		<transition>
 			<source ref="id10"/>
 			<target ref="id9"/>
-			<label kind="synchronisation" x="-128" y="-48">start_sensors?</label>
+			<label kind="synchronisation" x="-128" y="-48">start_sensors[lift_id]?</label>
 			<label kind="assignment" x="-104" y="-16">x := 0</label>
 		</transition>
 	</template>
 	<template>
 		<name>cabin_door</name>
+		<parameter>const id_e lift_id</parameter>
 		<declaration>clock x;</declaration>
 		<location id="id11" x="-280" y="40">
 			<committed/>
@@ -322,15 +324,15 @@ dequeue()</label>
 			<source ref="id11"/>
 			<target ref="id17"/>
 			<label kind="guard" x="-392" y="-48">x &gt;= door_time</label>
-			<label kind="synchronisation" x="-392" y="-32">door_open!</label>
-			<label kind="assignment" x="-392" y="-16">x := 0</label>
+			<label kind="synchronisation" x="-416" y="-25">door_open[lift_id]!</label>
+			<label kind="assignment" x="-340" y="-8">x := 0</label>
 			<nail x="-280" y="-32"/>
 			<nail x="-280" y="-48"/>
 		</transition>
 		<transition>
 			<source ref="id15"/>
 			<target ref="id12"/>
-			<label kind="synchronisation" x="208" y="-40">open_door?</label>
+			<label kind="synchronisation" x="208" y="-40">open_door[lift_id]?</label>
 			<label kind="assignment" x="208" y="-16">x := 0</label>
 			<nail x="200" y="40"/>
 			<nail x="152" y="40"/>
@@ -339,7 +341,7 @@ dequeue()</label>
 			<source ref="id13"/>
 			<target ref="id15"/>
 			<label kind="guard" x="208" y="-184">x &gt;= door_time</label>
-			<label kind="synchronisation" x="208" y="-168">door_closed!</label>
+			<label kind="synchronisation" x="208" y="-168">door_closed[lift_id]!</label>
 			<label kind="assignment" x="208" y="-152">x := 0</label>
 			<nail x="200" y="-160"/>
 			<nail x="200" y="-144"/>
@@ -347,14 +349,15 @@ dequeue()</label>
 		<transition>
 			<source ref="id17"/>
 			<target ref="id14"/>
-			<label kind="synchronisation" x="-360" y="-192">close_door?</label>
+			<label kind="synchronisation" x="-425" y="-187">close_door[lift_id]?</label>
 			<label kind="assignment" x="-352" y="-168">x := 0</label>
 			<nail x="-280" y="-160"/>
 			<nail x="-280" y="-168"/>
 		</transition>
 	</template>
 	<template>
-		<name>dummy_MainControl</name>
+		<name>lift_control</name>
+		<parameter>const id_e lift_id</parameter>
 		<declaration>id_f dest_floor = 1; // the current destination
 
 // Whether the elevator should move up or down
@@ -377,8 +380,8 @@ void update_floor_change(){
 		<location id="id19" x="-1181" y="-255">
 			<name x="-1224" y="-289">wait_for_door</name>
 		</location>
-		<location id="id20" x="-1309" y="-255">
-			<name x="-1343" y="-289">open_doors</name>
+		<location id="id20" x="-1326" y="-255">
+			<name x="-1360" y="-289">open_doors</name>
 			<committed/>
 		</location>
 		<location id="id21" x="-577" y="-255">
@@ -387,8 +390,8 @@ void update_floor_change(){
 		<location id="id22" x="-764" y="-255">
 			<name x="-774" y="-245">idle</name>
 		</location>
-		<location id="id23" x="-1309" y="-42">
-			<name x="-1343" y="-25">lift_stopped</name>
+		<location id="id23" x="-1326" y="-42">
+			<name x="-1360" y="-25">lift_stopped</name>
 		</location>
 		<location id="id24" x="-578" y="-42">
 			<name x="-552" y="-51">closing_doors</name>
@@ -405,9 +408,9 @@ void update_floor_change(){
 		<transition>
 			<source ref="id26"/>
 			<target ref="id26"/>
-			<label kind="guard" x="-1113" y="76">floors_to_travel &gt; 0</label>
-			<label kind="synchronisation" x="-1088" y="42">reach_floor?</label>
-			<label kind="assignment" x="-1113" y="93">update_floor_change()</label>
+			<label kind="guard" x="-1113" y="85">floors_to_travel &gt; 0</label>
+			<label kind="synchronisation" x="-1113" y="68">reach_floor[lift_id]?</label>
+			<label kind="assignment" x="-1113" y="102">update_floor_change()</label>
 			<nail x="-986" y="68"/>
 			<nail x="-1122" y="68"/>
 		</transition>
@@ -415,13 +418,13 @@ void update_floor_change(){
 			<source ref="id26"/>
 			<target ref="id23"/>
 			<label kind="guard" x="-1258" y="-42">floors_to_travel == 0</label>
-			<label kind="synchronisation" x="-1198" y="-59">stop!</label>
+			<label kind="synchronisation" x="-1241" y="-59">stop[lift_id]!</label>
 		</transition>
 		<transition>
 			<source ref="id18"/>
 			<target ref="id26"/>
 			<label kind="guard" x="-986" y="-110">dest_floor &lt; current_floor</label>
-			<label kind="synchronisation" x="-986" y="-93">move_down!</label>
+			<label kind="synchronisation" x="-986" y="-93">move_down[lift_id]!</label>
 			<nail x="-841" y="-93"/>
 			<nail x="-1003" y="-93"/>
 		</transition>
@@ -429,7 +432,7 @@ void update_floor_change(){
 			<source ref="id18"/>
 			<target ref="id26"/>
 			<label kind="guard" x="-986" y="17">dest_floor &gt; current_floor</label>
-			<label kind="synchronisation" x="-986" y="0">move_up!</label>
+			<label kind="synchronisation" x="-986" y="0">move_up[lift_id]!</label>
 			<nail x="-833" y="17"/>
 			<nail x="-1003" y="17"/>
 		</transition>
@@ -441,14 +444,14 @@ void update_floor_change(){
 		<transition>
 			<source ref="id19"/>
 			<target ref="id25"/>
-			<label kind="synchronisation" x="-1122" y="-255">door_open?</label>
-			<label kind="assignment" x="-1122" y="-272">x := 0</label>
+			<label kind="synchronisation" x="-1139" y="-255">door_open[lift_id]?</label>
+			<label kind="assignment" x="-1113" y="-272">x := 0</label>
 		</transition>
 		<transition>
 			<source ref="id21"/>
 			<target ref="id22"/>
 			<label kind="guard" x="-747" y="-348">dest_floor == current_floor</label>
-			<label kind="synchronisation" x="-697" y="-323">served!</label>
+			<label kind="synchronisation" x="-697" y="-323">served[lift_id]!</label>
 			<label kind="comments" x="-773" y="-374">Destination is the same as soruce</label>
 			<nail x="-577" y="-323"/>
 			<nail x="-764" y="-323"/>
@@ -456,13 +459,13 @@ void update_floor_change(){
 		<transition>
 			<source ref="id24"/>
 			<target ref="id18"/>
-			<label kind="synchronisation" x="-722" y="-42">door_closed?</label>
+			<label kind="synchronisation" x="-739" y="-42">door_closed[lift_id]?</label>
 		</transition>
 		<transition>
 			<source ref="id21"/>
 			<target ref="id24"/>
 			<label kind="guard" x="-561" y="-170">dest_floor != current_floor</label>
-			<label kind="synchronisation" x="-560" y="-153">close_door!</label>
+			<label kind="synchronisation" x="-560" y="-153">close_door[lift_id]!</label>
 			<label kind="assignment" x="-561" y="-128">floors_to_travel := 
 abs(current_floor - dest_floor)</label>
 			<label kind="comments" x="-357" y="-178">Calculate the length of direction to travel in.
@@ -474,17 +477,17 @@ if 1-0 = 1 (would go up otherwise).</label>
 		<transition>
 			<source ref="id23"/>
 			<target ref="id20"/>
-			<label kind="synchronisation" x="-1300" y="-161">served!</label>
+			<label kind="synchronisation" x="-1317" y="-161">served[lift_id]!</label>
 		</transition>
 		<transition>
 			<source ref="id20"/>
 			<target ref="id19"/>
-			<label kind="synchronisation" x="-1283" y="-255">open_door!</label>
+			<label kind="synchronisation" x="-1309" y="-246">open_door[lift_id]!</label>
 		</transition>
 		<transition>
 			<source ref="id22"/>
 			<target ref="id21"/>
-			<label kind="synchronisation" x="-696" y="-280">go?</label>
+			<label kind="synchronisation" x="-696" y="-280">go[lift_id]?</label>
 			<label kind="assignment" x="-739" y="-248">dest_floor := target_floor</label>
 		</transition>
 	</template>
@@ -543,15 +546,18 @@ if 1-0 = 1 (would go up otherwise).</label>
 		</transition>
 	</template>
 	<system>// Place template instantiations here.
-//reqHandler_process = reqHandlerSimple();
 
-//engineCtl_process = engineCtl();
 // Allows for scalability of amount of possible requests
-request_handlers = dummy_RequestHandler(5);
+const int handler_size = 5;
 
+// From https://stackoverflow.com/questions/68366786/declaration-of-multiple-processes-from-the-same-template-in-uppaal
+bool var[id_e]; // Have to add one to adjust the amount of elevators
+cabin_doors(const id_e id) = cabin_door(id); // cabin_door with argument lift id (0.. N-1)
+engines(const id_e id) = engine(id); // engines with argument lift id (0.. N-1)
+lift_controls(const id_e id) = lift_control(id); // engines with argument lift id (0.. N-1)
 
 // List one or more processes to be composed into a system.
-system cabin_door, protecting_door,engine, floor_sensors, button, request_handlers, dummy_MainControl;</system>
+system cabin_doors, protecting_door, engines, floor_sensors, button, request_handlers, lift_controls; // instantiate P(1)..P(N) by filling the constant values from id_t range</system>
 	<queries>
 		<query>
 			<formula>A[] not deadlock
