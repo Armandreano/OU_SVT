@@ -50,13 +50,13 @@ DGC
 
 Constraints
 
-- Other than parametrization, do not change the templates of the doors, engine, sensors or the button.
+[DONE] 2023-05-14 - Other than parametrization, do not change the templates of the doors, engine, sensors or the button.
 [DONE] 2023-05-09 - Give names to the locations in the MainControl and DGCRequestHandler templates. This allows you to have a clearer idea of what is being done where, and it also makes it easier to understand the feedback on the model.
-- Use the existing code for the queue, instead of writing a lot of code yourself.
-- First, you have to make sure that requests initiated by the button are sent to the ReqHandler of the corresponding elevator. 
-- To do this, formulate a function is_req_for_lift that takes as parameter a floor request and returns a bool. 
-- This function should be independent of the number of elevators and floors. 
-- Communication between the button and the ReqHandler can then be achieved using this function and conditional synchronous communication, one of the modelling patterns.
+[DONE] 2023-05-12 - Use the existing code for the queue, instead of writing a lot of code yourself.
+[DONE] 2023-05-12 - First, you have to make sure that requests initiated by the button are sent to the ReqHandler of the corresponding elevator. 
+[DONE] 2023-05-09 - To do this, formulate a function is_req_for_lift that takes as parameter a floor request and returns a bool. 
+[DONE] 2023-05-11 - This function should be independent of the number of elevators and floors. 
+[DONE] 2023-05-12 - Communication between the button and the ReqHandler can then be achieved using this function and conditional synchronous communication, one of the modelling patterns.
 [DONE] 2023-05-08 (Got it, using integers) - UPPAAL allows to use the double type, but this is intended to make a different kind of models from the ones we are using in this project. DO NOT use the double type in your project.
 - In the example, we show a configuration with 9 floors and 3 elevators, and assign 3 floors to each elevator. This is done because we want to assign the floors as equally as possible among the elevators, not because we want each elevator to serve exactly 3 floors.
 
