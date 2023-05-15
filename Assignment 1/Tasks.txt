@@ -37,15 +37,15 @@ Bugs:
 
 DGC
 
-- Model multiple elevators. This can elegantly be achieved by adding the number of elevators as a new constant of your model, in a similar way to the number of floors.
-[DONE] 20023-05-09 - You can parametrize automata in the “Parameters:” field in the Editor.
-- Next, the current simple RequestHandler is to be replaced by a smart one, called a DGCRequestHandler (for: Destination Group Control). 
-- We consider a simple DGC policy for a so-called "up-peak" situation. 
-- We describe the policy for a configuration of three elevators and nine floors (excluding the ground floor) as an example. Elevator 1 is assigned to serve floors 1, 2, and 3. Elevator 2 is assigned to serve floors 4, 5, and 6. Elevator 3 is assigned to serve floors 7, 8, and 9. 
+[DONE] 2023-05-09 - Model multiple elevators. This can elegantly be achieved by adding the number of elevators as a new constant of your model, in a similar way to the number of floors.
+[DONE] 2023-05-09 - You can parametrize automata in the “Parameters:” field in the Editor.
+[DONE] 2023-05-13 - Next, the current simple RequestHandler is to be replaced by a smart one, called a DGCRequestHandler (for: Destination Group Control). 
+[DONE] 2023-05-14 - We consider a simple DGC policy for a so-called "up-peak" situation. 
+[DONE] 2023-05-14 - We describe the policy for a configuration of three elevators and nine floors (excluding the ground floor) as an example. Elevator 1 is assigned to serve floors 1, 2, and 3. Elevator 2 is assigned to serve floors 4, 5, and 6. Elevator 3 is assigned to serve floors 7, 8, and 9. 
 [DONE] 2023-05-09 (This was already modeled?) - All elevators start at the ground floor (0) with their door open. 
-- An elevator leaves as soon as it has 5 requests in its FIFO queue, that is, the amount of the requests to the floors served bythe elevator equals 5. 
-- When all requests have been served, the elevator comes back to the ground floor. 
-- To prevent from waiting for passengers forever, whenever there is at least one request, the elevator will also leave after at most max_wait time units.
+[DONE] 2023-05-14 - An elevator leaves as soon as it has 5 requests in its FIFO queue, that is, the amount of the requests to the floors served bythe elevator equals 5. 
+[DONE] 2023-05-15 - When all requests have been served, the elevator comes back to the ground floor. 
+[DONE] 2023-05-14 - To prevent from waiting for passengers forever, whenever there is at least one request, the elevator will also leave after at most max_wait time units.
 
 
 Constraints
@@ -63,8 +63,17 @@ Constraints
 After completing Task 1.4, you can assess yourself whether your model is sufficient to be handed in. It should satisfy the following criteria:
 
 - It should be easy to play with different configurations, for instance, different numbers of floors or elevators. This means that – for instance – going from a model with 3 floors to a model with 4 floors should not be more work than changing the value of one parameter.
-- Your model should be understandable. This means that locations, channels and functions have clear and descriptive names. 
-- Any code that is used should be commented. 
+[DONE] 2023-05-15 - Your model should be understandable. This means that locations, channels and functions have clear and descriptive names. 
+[DONE] 2023-05-15 - Any code that is used should be commented. 
 - It also means that the model is small and elegant.
-- Your model should satisfy the “no deadlock” property and this should be verifiable for a setting with 2 elevators and 3 floors (including the ground floor).
-- If possible, all elevators should be able to serve (i.e. correctly receive and enqueue) a request for floor 0. However, if your model is not well optimized, satisfying this requirement may significantly increase the model checking times. It is thus allowed to refuse requests to floor 0 in this case; do keep in mind that the model would be “better” if it would accept also these requests.
+[DONE] 2023-05-15 - Your model should satisfy the “no deadlock” property and this should be verifiable for a setting with 2 elevators and 3 floors (including the ground floor).
+[DONE] 2023-05-15 - If possible, all elevators should be able to serve (i.e. correctly receive and enqueue) a request for floor 0. However, if your model is not well optimized, satisfying this requirement may significantly increase the model checking times. It is thus allowed to refuse requests to floor 0 in this case; do keep in mind that the model would be “better” if it would accept also these requests.
+
+Bugs:
+
+- Assign elevators L > F
+- Queue is not always cleared properly after arriving on a floor
+
+Optimizations:
+
+- Dequeuing is O(N!), should be optimised
