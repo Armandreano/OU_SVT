@@ -3,12 +3,15 @@
 <nta>
 	<declaration>// Place global declarations here.
 
+
+// Main comment: I apologize in advance due to me using lifts and elevators in concjunction. I am used to saying lift because I speak British Englis at home.
+
 // constants and variable related to number of floors
 const int F = 3;         // # floors
 typedef int[0,F-1] id_f; // floor id from 0 to N-1
 
 // Stolen definition from Floor declarations (above)
-const int L = 3;         // # lifts
+const int L = 2;         // # lifts (UK English). F and E are too similar in this poorly readable font of this program.
 typedef int[0, L-1] id_e;// elevator ID from 0 to N-1
 
 // constant definition for amount of channels (F x L)
@@ -21,13 +24,18 @@ const int handler_size = 5;
 // The array has been divided by the amount of lifts, plus added one to take care of the uneven division.
 // There could be less floors than lifts F&lt;L == 0, one lift F/1 = F, or more floors than there are lifts. 
 // The first situation is special and requires a different subdivision.
-id_f floors_per_lift(){
+int floors_per_lift(){
     int size = 0;
 
-    if(F == 1 || F &lt; L)
+    // Equality is key, there are problems when the number of elevators are unequal
+    // compared the number of floors
+
+    // Problematic assignments are checked here
+    if(F == 1 &amp;&amp; L &gt; 1 || F &lt; L)
     {
         size = F;
     }
+    // There are no problems when the number of lifts are equal or smaller than the number of floors 
     else
     {
         size = F / L;
@@ -298,10 +306,9 @@ void receive_request(id_f request)
     }
 }
 
-// TODO: FIX F &lt; L
-void divide_floors_per_lift(){
-    // Calculate how many floors there are per left
-    const int floors_per_lift = floors_per_lift();
+void divide_floors_equal_larger_than_lifts(const int floors_per_lift)
+{
+
     // the remainder to be divided amongst the lifts
     int remainder = F % L;
     
@@ -311,14 +318,13 @@ void divide_floors_per_lift(){
     // Go through all of the lifts (there should be no floors left afterwards
 
 
-    for(i : id_e)
+    for(i : int[0, L-1])
     {
         // Add the starting floor
         active_floor_serving_plan[i].min = current_floor;
         // End floor for this lift
         active_floor_serving_plan[i].max = current_floor + floors_per_lift - 1;
         
-
         // Update the current maximum floor for the next lift
         if(i + 1 &lt; L) 
            current_floor += floors_per_lift;
@@ -334,6 +340,60 @@ void divide_floors_per_lift(){
             // Update the starting floor for the next lift as well
             current_floor++;
         }
+    }
+}
+
+void divide_floors_smaller_than_lifts(const int floors_per_lift)
+{
+    int current_floor = 0;
+
+    for(e : id_e)
+    { 
+        // Grab whatever is remaining and start count at 0 (could lead to uneven distribution)
+        if(current_floor + floors_per_lift &gt;= F)
+        {
+            // Add the starting floor
+            active_floor_serving_plan[e].min = current_floor;
+            // End floor for this lift
+            active_floor_serving_plan[e].max = F - 1;
+            
+            // reset the counter
+            current_floor = 0;
+        }
+        else
+        {// In most cases there will only be one lift per floor, but it is possible to get more
+            // Add the starting floor
+            active_floor_serving_plan[e].min = current_floor;
+            // End floor for this lift
+            active_floor_serving_plan[e].max = current_floor + floors_per_lift - 1;
+            current_floor += floors_per_lift;
+        }  
+    }
+}
+
+// TODO: FIX F &lt; L
+void divide_floors_per_lift(){
+    // Calculate how many floors there are per left
+    int floors_per_lift = floors_per_lift();
+
+    // Counting on the fact that divising higher denominator than a numerator will always be 0 as an integer (1/2, 1/3, ... 1/n)
+    if(F &gt;= L)
+    { // Assigning floors is easier when the amount of floors is equal or higher to the amount of lifts. than when its not
+        divide_floors_equal_larger_than_lifts(floors_per_lift);
+    }
+    else
+    { //higher denominator
+        // Now comes the harder part... 
+        // Assigning floors for a system where the number of floors are larger than the number of lifts
+        int divisor = 2;
+        
+        while(L / divisor &gt;= F)
+        {
+            divisor++;
+        }    
+        
+        floors_per_lift = F /  (L / divisor); // Should be one or more
+        divide_floors_smaller_than_lifts(floors_per_lift);
     }
 }
 </declaration>

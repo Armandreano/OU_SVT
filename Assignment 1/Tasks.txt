@@ -62,16 +62,16 @@ Constraints
 
 After completing Task 1.4, you can assess yourself whether your model is sufficient to be handed in. It should satisfy the following criteria:
 
-- It should be easy to play with different configurations, for instance, different numbers of floors or elevators. This means that – for instance – going from a model with 3 floors to a model with 4 floors should not be more work than changing the value of one parameter.
+[DONE] 2023-05-17 - It should be easy to play with different configurations, for instance, different numbers of floors or elevators. This means that – for instance – going from a model with 3 floors to a model with 4 floors should not be more work than changing the value of one parameter.
 [DONE] 2023-05-15 - Your model should be understandable. This means that locations, channels and functions have clear and descriptive names. 
 [DONE] 2023-05-15 - Any code that is used should be commented. 
-- It also means that the model is small and elegant.
+[NEEDS WORK] 2023-05-15 - It also means that the model is small and elegant.
 [DONE] 2023-05-15 - Your model should satisfy the “no deadlock” property and this should be verifiable for a setting with 2 elevators and 3 floors (including the ground floor).
 [DONE] 2023-05-15 - If possible, all elevators should be able to serve (i.e. correctly receive and enqueue) a request for floor 0. However, if your model is not well optimized, satisfying this requirement may significantly increase the model checking times. It is thus allowed to refuse requests to floor 0 in this case; do keep in mind that the model would be “better” if it would accept also these requests.
 
 Bugs:
 
-- Assign elevators L > F
+[DONE] 2023-05-17 - Assign elevators L > F
 - Queue is not always cleared properly after arriving on a floor
 
 Optimizations:
