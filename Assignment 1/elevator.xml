@@ -50,7 +50,8 @@ typedef struct {
     id_f peak_service_floor; // The floor to return to with high requests
 } floors_to_serve;
 
-const int queue_wait_time = 5; // Do not wait more than 5 seconds (buttons are called every cycle)
+// Do not wait more than 5 seconds (buttons are called every cycle, it could be filled up after 5 seconds)
+const int queue_wait_time = 5; 
 
 // The active floor serving plan
 floors_to_serve active_floor_serving_plan[L];
@@ -530,7 +531,7 @@ x := 0</label>
 		<transition>
 			<source ref="id2"/>
 			<target ref="id6"/>
-			<label kind="guard" x="85" y="-195">x == queue_wait_time</label>
+			<label kind="guard" x="85" y="-195">x &gt;= queue_wait_time</label>
 			<nail x="76" y="-169"/>
 			<nail x="187" y="-169"/>
 		</transition>
