@@ -7,11 +7,11 @@
 // Main comment: I apologize in advance due to me using lifts and elevators in concjunction. I am used to saying lift because I speak British Englis at home.
 
 // constants and variable related to number of floors
-const int F = 3;         // # floors
+const int F = 10;         // # floors
 typedef int[0,F-1] id_f; // floor id from 0 to N-1
 
 // Stolen definition from Floor declarations (above)
-const int L = 2;         // # lifts (UK English). F and E are too similar in this poorly readable font of this program.
+const int L = 3;         // # lifts (UK English). F and E are too similar in this poorly readable font of this program.
 typedef int[0, L-1] id_e;// elevator ID from 0 to N-1
 
 // Allows for scalability of amount of possible requests
