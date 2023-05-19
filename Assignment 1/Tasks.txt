@@ -58,22 +58,52 @@ Constraints
 [DONE] 2023-05-11 - This function should be independent of the number of elevators and floors. 
 [DONE] 2023-05-12 - Communication between the button and the ReqHandler can then be achieved using this function and conditional synchronous communication, one of the modelling patterns.
 [DONE] 2023-05-08 (Got it, using integers) - UPPAAL allows to use the double type, but this is intended to make a different kind of models from the ones we are using in this project. DO NOT use the double type in your project.
-- In the example, we show a configuration with 9 floors and 3 elevators, and assign 3 floors to each elevator. This is done because we want to assign the floors as equally as possible among the elevators, not because we want each elevator to serve exactly 3 floors.
+[DONE] 2023-05-17 - In the example, we show a configuration with 9 floors and 3 elevators, and assign 3 floors to each elevator. This is done because we want to assign the floors as equally as possible among the elevators, not because we want each elevator to serve exactly 3 floors.
 
 After completing Task 1.4, you can assess yourself whether your model is sufficient to be handed in. It should satisfy the following criteria:
 
 [DONE] 2023-05-17 - It should be easy to play with different configurations, for instance, different numbers of floors or elevators. This means that – for instance – going from a model with 3 floors to a model with 4 floors should not be more work than changing the value of one parameter.
 [DONE] 2023-05-15 - Your model should be understandable. This means that locations, channels and functions have clear and descriptive names. 
 [DONE] 2023-05-15 - Any code that is used should be commented. 
-[NEEDS WORK] 2023-05-15 - It also means that the model is small and elegant.
+[NEEDS WORK?] 2023-05-15 - It also means that the model is small and elegant.
 [DONE] 2023-05-15 - Your model should satisfy the “no deadlock” property and this should be verifiable for a setting with 2 elevators and 3 floors (including the ground floor).
 [DONE] 2023-05-15 - If possible, all elevators should be able to serve (i.e. correctly receive and enqueue) a request for floor 0. However, if your model is not well optimized, satisfying this requirement may significantly increase the model checking times. It is thus allowed to refuse requests to floor 0 in this case; do keep in mind that the model would be “better” if it would accept also these requests.
+
+A[] not deadlock 
+Verification/kernel/elapsed time used: 655.797s / 0.859s / 656.712s.
+Resident/virtual memory usage peaks: 4,200,880KB / 8,554,992KB.
+Property is satisfied.
 
 Bugs:
 
 [DONE] 2023-05-17 - Assign elevators L > F
-- Queue is not always cleared properly after arriving on a floor
+[DONE] 2023-05-17 (was incorrect assumption)- Queue is not always cleared properly after arriving on a floor
 
 Optimizations:
 
 - Dequeuing is O(N!), should be optimised
+
+
+FEEDBACK AFTER TASK 1
+
+[DONE] 2023-05-18 (Yes, it did cost some time, some parts of the document are ambiguous) - ik vermoed dat deze opdracht veel tijd heeft gekost: je hebt het model veel meer uitgebreid dan nodig (of gevraagd). Ik zal mijn best doen om suggesties te geven om het model te verbeteren
+[DONE] 2023-05-18 - Je hebt queue_wait_time ingesteld op 30. Vraag je even af of dit een handige keuze is. Denk hierbij ook aan de theorie over region automata; wat is de consequentie van deze keuze? Denk aan wat de bedoeling is van deze constante: welke waarde van max_wait is "groot genoeg" in ons geval?
+[DONE] 2023-05-18 - Gebruik geen variabelen van type unbounded integer, die kunnen tot een gigantische state-space leiden. Als je echt een integer nodig hebt, dan probeer die als constante te declareren (bijv. passenger_wait_time is nu gewoon een int. En trouwens, het is niet nodig dat we op de personen wachten, dus dit deel kan weg en het model kan simpeler/sneller worden).
+[DONE] 2023-05-18 (yep, allows for changing the floor to return to during peak times) - ik weet niet zeker dat ik snap wat je doet met up_peak_floor: is dit bedoeld voor een mogelijke uitbreiding van het model?
+[DONE] 2023-05-19 - voor de channels van de protecting doors kan je direct 2D arrays declareren, dan bespaar je nog een stuk complexiteit
+[DONE] 2023-05-19 - je declareert target_floor als array. Maar hoeveel communicaties gebeuren tegelijkertijd op een go[..] channel? Omdat de waarde voor de gewenste verdieping doorgegeven wordt d.m.v. een enkele transitie ("value-passing" communicatie uit de UPPAAL tutorial), kunnen we ook gewoon maar 1 variabele gebruiken voor die waarde?
+[DONE] 2023-05-18- in UPPAAL kan je aannemen dat alle variabelen en clocks beginnen met waarde 0, dus de "reset_current_floors()" is waarschijnlijk niet nodig
+[DONE] 2023-05-18 (removed) - ik snap niet waarom je een aparte DGC_request_handler hebt, en wat je doet met "are_lifts_occupied()". Let op (dit geldt in meerdere punten, ik zal het evt herhalen): een transitie wordt niet genomen op het eerst moment dat de guard waar is. Is het de bedoeling dat als alle lifts bezig zijn dan wacht je op geen request? Misschien kan je dit per lift doen: als een lift bezig is, dan ontvangt die lift geen request (impliciet is dus mijn suggestie om de lifts zelf de req's laten ontvangen, in het FIFO template: dan heb je een apart template niet nodig).
+
+FIFO
+
+[DONE] 2023-05-19 - je model voldoet nog niet aan de eis: "Zodra de queue vol is, vertrekt de lift". Het feit dat een guard waar is betekent niet dat de transitie meteen wordt genomen. Dit is toch subtiel, maar probeer om te denken als je na een request kan bepalen of de queue vol is, en in dat geval direct reageren.
+[DONE] 2023-05-19- je model voldoet nog niet aan de eis dat de lift vertrekt maximaal X secondes na het ontvangen van de eerste request. Let op: deze time out moet (pas) in gaan na het ontvangen van de eerste request. Ook hier: het feit dat een guard waar is betekent niet dat de transitie meteen wordt genomen.
+[DONE] 2023-05-19 - het template kan in principe in de locatie "emptying_queue" (en andere locaties) oneindig blijven, en dit willen we niet. Waarom, en hoe kan dit worden vermeden?
+[DONE] 2023-05-18 (removed) - over "wait_for_passenger": zoals gezegt, is dit per se niet nodig en kan verificatietijd kosten. Let ook op: zonder guard, zeg je dat je ten hoogste passenger_wait_time wacht, maar de lift kan ook bijv. 0 tijd wachten en direct doorgaan
+- is_req_for_lift is nu moeilijk te testen. Probeer wat randgevallen te checken: bijvoorbeeld, het geval met 10 verdiepingen en 3 lifts is vaak "moeilijk" (ik krijg nu een fout met arrays als ik probeer deze instelling te gebruiken)
+
+lift_control
+[DONE] 2023-05-18 - volgens de specificatie, zou "served!" moeten worden gestuurd nadat de deuren open zijn
+[DONE] 2023-05-19 - (dit commentaar ken je al :)) het template kan in principe in de locatie "received_destination" (en meerdere andere locaties) oneindig blijven, en dit willen we niet. Hoe kan dit worden vermeden?
+[DONE] 2023-05-19 - in de locatie "change_floors" kunnen we in principe nog floor_time time units wachten voordat een "stop!" wordt gestuurd. Waarom? Kan een "stop!" meteen na het bereiken van de juiste verdieping worden gestuurd?
