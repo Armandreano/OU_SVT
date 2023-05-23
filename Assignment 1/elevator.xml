@@ -452,18 +452,18 @@ void receive_request(id_f request)
 		</location>
 		<location id="id3" x="544" y="-127">
 			<name x="510" y="-161">emptying_queue</name>
-			<urgent/>
+			<committed/>
 		</location>
 		<location id="id4" x="-340" y="170">
 			<name x="-552" y="170">return_to_peak_service_floor</name>
 		</location>
 		<location id="id5" x="119" y="170">
 			<name x="76" y="119">empty_queue</name>
-			<urgent/>
+			<committed/>
 		</location>
 		<location id="id6" x="255" y="-127">
 			<name x="245" y="-161">ready_to_go</name>
-			<urgent/>
+			<committed/>
 		</location>
 		<init ref="id0"/>
 		<transition>
@@ -580,7 +580,7 @@ void update_floor_change(){
 }</declaration>
 		<location id="id7" x="-1139" y="-42">
 			<name x="-1149" y="-76">choose_direction</name>
-			<urgent/>
+			<committed/>
 		</location>
 		<location id="id8" x="-1156" y="-314">
 			<name x="-1199" y="-348">wait_for_door</name>
@@ -591,7 +591,7 @@ this control</label>
 		</location>
 		<location id="id9" x="-1402" y="-314">
 			<name x="-1436" y="-348">open_doors</name>
-			<urgent/>
+			<committed/>
 		</location>
 		<location id="id10" x="-586" y="-42">
 			<name x="-595" y="-25">received_destination</name>
@@ -602,7 +602,7 @@ this control</label>
 		</location>
 		<location id="id12" x="-901" y="-314">
 			<name x="-944" y="-348">active_to_idle</name>
-			<urgent/>
+			<committed/>
 		</location>
 		<location id="id13" x="-918" y="-42">
 			<name x="-960" y="-76">closing_doors</name>
@@ -616,7 +616,7 @@ this control</label>
 		</location>
 		<location id="id15" x="-1402" y="-187">
 			<name x="-1385" y="-195">floor_reached</name>
-			<urgent/>
+			<committed/>
 		</location>
 		<init ref="id9"/>
 		<transition>
