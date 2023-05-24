@@ -43,14 +43,14 @@ id_f floors_per_lift(){
     return size;
 }
 
-// the floor serving plan for all eleveators
+// the floor serving plan for all elevators
 typedef struct {
     id_f min;
     id_f max;
     id_f peak_service_floor; // The floor to return to with high requests
 } floors_to_serve;
 
-// Do not wait more than 5 seconds (buttons are called every cycle, it could be filled up after 5 seconds)
+// Do not wait more than 4 seconds (buttons are called every cycle, it could be filled up after 4 seconds)
 const int queue_wait_time = 4; 
 
 // The active floor serving plan
@@ -86,7 +86,7 @@ chan start_sensors[id_e], stop_sensors[id_e], reach_floor[id_e];
 const int passenger_wait_time = 5; // Perhaps this should be shorter?
 
 // button channels
-chan req[id_f];
+chan req[id_f][id_f];
 
 // communications between RequestHandler and MainControl
 chan go[id_e], served[id_e];
@@ -455,7 +455,7 @@ void receive_request(id_f request)
 			<committed/>
 		</location>
 		<location id="id4" x="-340" y="170">
-			<name x="-552" y="170">return_to_peak_service_floor</name>
+			<name x="-535" y="161">return_to_peak_service_floor</name>
 		</location>
 		<location id="id5" x="119" y="170">
 			<name x="76" y="119">empty_queue</name>
@@ -469,11 +469,11 @@ void receive_request(id_f request)
 		<transition>
 			<source ref="id2"/>
 			<target ref="id6"/>
-			<label kind="select" x="68" y="-68">i : id_f</label>
-			<label kind="guard" x="68" y="-51">is_request_for_lift(i, lift_id) &amp;&amp; 
-will_be_full(i)</label>
-			<label kind="synchronisation" x="68" y="-17">req[i]?</label>
-			<label kind="assignment" x="68" y="0">receive_request(i)</label>
+			<label kind="select" x="68" y="-68">ori : id_f, dest : id_f</label>
+			<label kind="guard" x="68" y="-51">is_request_for_lift(dest, lift_id) &amp;&amp; 
+will_be_full(dest)</label>
+			<label kind="synchronisation" x="68" y="-17">req[ori][dest]?</label>
+			<label kind="assignment" x="68" y="0">receive_request(dest)</label>
 			<nail x="68" y="-68"/>
 			<nail x="187" y="-68"/>
 		</transition>
@@ -486,27 +486,27 @@ set_lift_active(lift_id, true)</label>
 		<transition>
 			<source ref="id2"/>
 			<target ref="id2"/>
-			<label kind="select" x="-51" y="-288">i : id_f</label>
-			<label kind="guard" x="-51" y="-322">is_request_for_lift(i, lift_id) &amp;&amp; 
-!will_be_full(i)</label>
-			<label kind="synchronisation" x="-51" y="-271">req[i]?</label>
-			<label kind="assignment" x="-51" y="-254">receive_request(i)</label>
+			<label kind="select" x="-51" y="-288">ori : id_f, dest : id_f</label>
+			<label kind="guard" x="-51" y="-322">is_request_for_lift(dest, lift_id) &amp;&amp; 
+!will_be_full(dest)</label>
+			<label kind="synchronisation" x="-51" y="-271">req[ori][dest]?</label>
+			<label kind="assignment" x="-51" y="-254">receive_request(dest)</label>
 			<nail x="76" y="-229"/>
 			<nail x="-76" y="-229"/>
 		</transition>
 		<transition>
 			<source ref="id1"/>
 			<target ref="id2"/>
-			<label kind="select" x="-289" y="-203">i : id_f</label>
-			<label kind="guard" x="-289" y="-220">is_request_for_lift(i, lift_id)</label>
-			<label kind="synchronisation" x="-288" y="-186">req[i]?</label>
-			<label kind="assignment" x="-289" y="-169">receive_request(i), 
+			<label kind="select" x="-289" y="-203">ori : id_f, dest : id_f</label>
+			<label kind="guard" x="-289" y="-220">is_request_for_lift(dest, lift_id)</label>
+			<label kind="synchronisation" x="-288" y="-186">req[ori][dest]?</label>
+			<label kind="assignment" x="-289" y="-169">receive_request(dest), 
 x := 0</label>
 		</transition>
 		<transition>
 			<source ref="id3"/>
 			<target ref="id5"/>
-			<label kind="guard" x="391" y="93">is_empty(lift_id)</label>
+			<label kind="guard" x="323" y="34">is_empty(lift_id)</label>
 		</transition>
 		<transition>
 			<source ref="id5"/>
@@ -531,7 +531,7 @@ x := 0</label>
 		<transition>
 			<source ref="id2"/>
 			<target ref="id6"/>
-			<label kind="guard" x="85" y="-195">x &gt;= queue_wait_time</label>
+			<label kind="guard" x="68" y="-195">x &gt;= queue_wait_time</label>
 			<nail x="76" y="-169"/>
 			<nail x="187" y="-169"/>
 		</transition>
@@ -595,7 +595,7 @@ this control</label>
 		</location>
 		<location id="id10" x="-586" y="-42">
 			<name x="-595" y="-25">received_destination</name>
-			<urgent/>
+			<committed/>
 		</location>
 		<location id="id11" x="-585" y="-314">
 			<name x="-595" y="-348">idle</name>
@@ -606,7 +606,7 @@ this control</label>
 		</location>
 		<location id="id13" x="-918" y="-42">
 			<name x="-960" y="-76">closing_doors</name>
-			<label kind="invariant" x="-960" y="-17">x &lt;= door_time</label>
+			<label kind="invariant" x="-960" y="-25">x &lt;= door_time</label>
 			<label kind="comments" x="-1003" y="8">Timer was added to 
 prevent deadlocks in 
 this control</label>
@@ -629,8 +629,8 @@ this control</label>
 		<transition>
 			<source ref="id14"/>
 			<target ref="id14"/>
-			<label kind="guard" x="-1656" y="-51">floors_to_travel - 1 &gt; 0</label>
-			<label kind="synchronisation" x="-1656" y="-68">reach_floor[lift_id]?</label>
+			<label kind="guard" x="-1657" y="-68">floors_to_travel - 1 &gt; 0</label>
+			<label kind="synchronisation" x="-1657" y="-51">reach_floor[lift_id]?</label>
 			<label kind="assignment" x="-1656" y="-34">update_floor_change()</label>
 			<nail x="-1495" y="17"/>
 			<nail x="-1495" y="-93"/>
@@ -712,6 +712,7 @@ if 1-0 = 1 (would go up otherwise).</label>
 	</template>
 	<template>
 		<name>button</name>
+		<parameter>id_f ori</parameter>
 		<declaration>clock x;</declaration>
 		<location id="id16" x="-32" y="-8">
 		</location>
@@ -719,9 +720,9 @@ if 1-0 = 1 (would go up otherwise).</label>
 		<transition>
 			<source ref="id16"/>
 			<target ref="id16"/>
-			<label kind="select" x="-48" y="-112">i : id_f</label>
+			<label kind="select" x="-48" y="-112">dest : id_f</label>
 			<label kind="guard" x="-48" y="-96">x &gt;=1</label>
-			<label kind="synchronisation" x="-48" y="-80">req[i]!</label>
+			<label kind="synchronisation" x="-48" y="-80">req[ori][dest]!</label>
 			<label kind="assignment" x="-48" y="-64">x=0</label>
 			<nail x="-64" y="-48"/>
 			<nail x="0" y="-48"/>
@@ -965,23 +966,26 @@ if 1-0 = 1 (would go up otherwise).</label>
 //request_handler = DGC_request_handler(handler_size);
 
 // From https://stackoverflow.com/questions/68366786/declaration-of-multiple-processes-from-the-same-template-in-uppaal
-//bool var1[id_e]; // Have to add one to adjust the number of elevators
-//bool var2[id_f]; // Have to add one to adjust the number of floors
-cabin_doors(const id_e id) = cabin_door(id); // cabin_door with argument lift id (0.. N-1)
-engines(const id_e id) = engine(id); // engines with argument lift id (0.. N-1)
-lift_controls(const id_e id) = lift_control(id); // engines with argument lift id (0.. N-1)
+//cabin_doors(const id_e id) = cabin_door(id); // cabin_door with argument lift id (0.. N-1)
+//engines(const id_e id) = engine(id); // engines with argument lift id (0.. N-1)
+//lift_controls(const id_e id) = lift_control(id); // engines with argument lift id (0.. N-1)
 //protecting_doors(const id_f id) = protecting_door(id); // engines with argument lift id (0.. N-1)
-protecting_doors(const id_e l_id, const id_f f_id) = protecting_door(l_id, f_id); // proectecting doors with argument lifts X floors (N-1 X F-1)
-fifos(const id_e id) = FIFO(id); // fifos with argument lift id (0.. N-1)
+//protecting_doors(const id_e l_id, const id_f f_id) = protecting_door(l_id, f_id); // proectecting doors with argument lifts X floors (N-1 X F-1)
+//fifos(const id_e id) = FIFO(id); // fifos with argument lift id (0.. N-1)
+button_zero = button(0); // Can be expanded like above (below)
+// buttons{const id_f id) = button(id); // can be used to build multiple foors 
 
 // List one or more processes to be composed into a system.
-system button, fifos, lift_controls, engines, floor_sensors, cabin_doors, protecting_doors ; // instantiate P(1)..P(N) by filling the constant values from id_t range</system>
+system button_zero, FIFO, lift_control, engine, floor_sensors, cabin_door, protecting_door ; // instantiate P(1)..P(N) by filling the constant values from id_t range</system>
 	<queries>
 		<query>
-			<formula>A[] not deadlock
-			</formula>
+			<formula>A[] not deadlock</formula>
 			<comment>
 			</comment>
+		</query>
+		<query>
+			<formula>(lift_control(0).closing_doors --&gt; lift_control(0).choose_direction) and (lift_control(0).choose_direction --&gt; lift_control(0).change_floors)</formula>
+			<comment></comment>
 		</query>
 	</queries>
 </nta>
