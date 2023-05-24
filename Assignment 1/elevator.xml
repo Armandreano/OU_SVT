@@ -963,20 +963,10 @@ if 1-0 = 1 (would go up otherwise).</label>
 	</template>
 	<system>// Place template instantiations here.
 
-//request_handler = DGC_request_handler(handler_size);
-
-// From https://stackoverflow.com/questions/68366786/declaration-of-multiple-processes-from-the-same-template-in-uppaal
-//cabin_doors(const id_e id) = cabin_door(id); // cabin_door with argument lift id (0.. N-1)
-//engines(const id_e id) = engine(id); // engines with argument lift id (0.. N-1)
-//lift_controls(const id_e id) = lift_control(id); // engines with argument lift id (0.. N-1)
-//protecting_doors(const id_f id) = protecting_door(id); // engines with argument lift id (0.. N-1)
-//protecting_doors(const id_e l_id, const id_f f_id) = protecting_door(l_id, f_id); // proectecting doors with argument lifts X floors (N-1 X F-1)
-//fifos(const id_e id) = FIFO(id); // fifos with argument lift id (0.. N-1)
-button_zero = button(0); // Can be expanded like above (below)
-// buttons{const id_f id) = button(id); // can be used to build multiple foors 
+button_zero = button(0); // Only create one button
 
 // List one or more processes to be composed into a system.
-system button_zero, FIFO, lift_control, engine, floor_sensors, cabin_door, protecting_door ; // instantiate P(1)..P(N) by filling the constant values from id_t range</system>
+system button_zero, FIFO, lift_control, engine, floor_sensors, cabin_door, protecting_door ; </system>
 	<queries>
 		<query>
 			<formula>A[] not deadlock</formula>
@@ -984,8 +974,20 @@ system button_zero, FIFO, lift_control, engine, floor_sensors, cabin_door, prote
 			</comment>
 		</query>
 		<query>
-			<formula>(lift_control(0).closing_doors --&gt; lift_control(0).choose_direction) and (lift_control(0).choose_direction --&gt; lift_control(0).change_floors)</formula>
-			<comment></comment>
+			<formula>lift_control(0).closing_doors --&gt; lift_control(0).idle</formula>
+			<comment>Property1: Is it possible to get to our target location and then become idle again? We are skipping the state where we have to wait for the door, that state will be deadlocked in its own right. The idle transition will be deadlocked because time does not pass and queries are passed on from other automata. 
+
+If one lift has a deadlock, the others do too. (liveness)</comment>
+		</query>
+		<query>
+			<formula>lift_control(0).received_destination --&gt; lift_control(0).idle</formula>
+			<comment>Property1: Is it possible to receive a destination and then become idle again? This is a single transition, but it needs to be added to check whether a lift control has a deadlock. The idle transition will be deadlocked because time does not pass and queries are passed on from other automata. 
+
+If one lift has a deadlock, the others do too. (liveness)</comment>
+		</query>
+		<query>
+			<formula>lift_control(0).received_destination --&gt; lift_control(0).closing_doors and lift_control(0).dest_floor != current_floors[0]</formula>
+			<comment>Does not verify. Is it really needed? The question is whether it is possible to check it?</comment>
 		</query>
 	</queries>
 </nta>
