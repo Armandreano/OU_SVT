@@ -975,19 +975,27 @@ system button_zero, FIFO, lift_control, engine, floor_sensors, cabin_door, prote
 		</query>
 		<query>
 			<formula>lift_control(0).closing_doors --&gt; lift_control(0).idle</formula>
-			<comment>Property1: Is it possible to get to our target location and then become idle again? We are skipping the state where we have to wait for the door, that state will be deadlocked in its own right. The idle transition will be deadlocked because time does not pass and queries are passed on from other automata. 
+			<comment>Property 1 (liveness): Is it possible to get to our target location and then become idle again? We are skipping the state where we have to wait for the door, that state will be deadlocked in its own right. The idle transition will be deadlocked because time does not pass and queries are passed on from other automata. 
 
-If one lift has a deadlock, the others do too. (liveness)</comment>
+If one lift has a deadlock, the others do too.</comment>
 		</query>
 		<query>
 			<formula>lift_control(0).received_destination --&gt; lift_control(0).idle</formula>
-			<comment>Property1: Is it possible to receive a destination and then become idle again? This is a single transition, but it needs to be added to check whether a lift control has a deadlock. The idle transition will be deadlocked because time does not pass and queries are passed on from other automata. 
+			<comment>Property 1 (liveness): Is it possible to receive a destination and then become idle again? This is a single transition, but it needs to be added to check whether a lift control has a deadlock. The idle transition will be deadlocked because time does not pass and queries are passed on from other automata. 
 
-If one lift has a deadlock, the others do too. (liveness)</comment>
+If one lift has a deadlock, the others do too.</comment>
 		</query>
 		<query>
 			<formula>lift_control(0).received_destination --&gt; lift_control(0).closing_doors and lift_control(0).dest_floor != current_floors[0]</formula>
 			<comment>Does not verify. Is it really needed? The question is whether it is possible to check it?</comment>
+		</query>
+		<query>
+			<formula>A[] forall(i : id_e) not ((engine(i).moving_down or engine(i).moving_up) and (cabin_door(i).open or cabin_door(i).executing))</formula>
+			<comment>Property 2(safety): There should not be any situation (~EG(~f)) where the lift doors should be oopen whilst changing floors (check for all lifts, in case we accidentally send information to wrong lift). As long as the cabin_door is closed, the protecting doors are closed as well. It would also be problematic if the doors are in the executing state (opening or closing).</comment>
+		</query>
+		<query>
+			<formula></formula>
+			<comment></comment>
 		</query>
 	</queries>
 </nta>
