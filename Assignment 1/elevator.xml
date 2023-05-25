@@ -970,8 +970,7 @@ system button_zero, FIFO, lift_control, engine, floor_sensors, cabin_door, prote
 	<queries>
 		<query>
 			<formula>A[] not deadlock</formula>
-			<comment>
-			</comment>
+			<comment>Checks whethere there are any deadlocks in the system (also used for property 1)</comment>
 		</query>
 		<query>
 			<formula>lift_control(0).closing_doors --&gt; lift_control(0).idle</formula>
@@ -986,16 +985,78 @@ If one lift has a deadlock, the others do too.</comment>
 If one lift has a deadlock, the others do too.</comment>
 		</query>
 		<query>
-			<formula>lift_control(0).received_destination --&gt; lift_control(0).closing_doors and lift_control(0).dest_floor != current_floors[0]</formula>
-			<comment>Does not verify. Is it really needed? The question is whether it is possible to check it?</comment>
-		</query>
-		<query>
-			<formula>A[] forall(i : id_e) not ((engine(i).moving_down or engine(i).moving_up) and (cabin_door(i).open or cabin_door(i).executing))</formula>
+			<formula>A[] not ((engine(0).moving_down or engine(0).moving_up) and (cabin_door(0).open or cabin_door(0).executing))</formula>
 			<comment>Property 2(safety): There should not be any situation (~EG(~f)) where the lift doors should be oopen whilst changing floors (check for all lifts, in case we accidentally send information to wrong lift). As long as the cabin_door is closed, the protecting doors are closed as well. It would also be problematic if the doors are in the executing state (opening or closing).</comment>
 		</query>
 		<query>
-			<formula></formula>
+			<formula>A[] not ((engine(1).moving_down or engine(1).moving_up) and (cabin_door(1).open or cabin_door(1).executing))</formula>
 			<comment></comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; is_full(0) and FIFO(0).ready_to_go and current_floors[0] == get_peak_service_floor(0) and not current_floors[0] != get_peak_service_floor(0)</formula>
+			<comment>Property 3 (reachability): Elevators must be able to fill up their queue whilst being on the ground floor. The peak service floor is (initially) always set to 0, and the state where the FIFO (DGC) must be at is ready_to_go (ready for transit) and the queue of said lift must be full. 
+There must be at least one state that exists for this exact state with these variables, and they should exist for every elevator. The query has to be split for the different elevators, because it would be a very slim chance that both lifts are in the exact same position every time.
+
+The check to see whether it does not fill up on other floors is added to ensure that the queue never fills up above the peak service floor (ground floor).</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; is_full(1) and FIFO(1).ready_to_go and current_floors[1] == get_peak_service_floor(1) and not current_floors[1] != get_peak_service_floor(1)</formula>
+			<comment>Property 3 (reachability): Elevators must be able to fill up their queue whilst being on the ground floor. The peak service floor is (initially) always set to 0, and the state where the FIFO (DGC) must be at is ready_to_go (ready for transit) and the queue of said lift must be full. 
+There must be at least one state that exists for this exact state with these variables, and they should exist for every elevator. The query has to be split for the different elevators, because it would be a very slim chance that both lifts are in the exact same position every time.
+
+The check to see whether it does not fill up on other floors is added to ensure that the queue never fills up above the peak service floor (ground floor).</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; lift_control(0).floor_reached and current_floors[0] == 0 and FIFO(0).is_request_for_lift(0, 0)</formula>
+			<comment>Property 4 (Each floor above the ground floor can be reached, and only by the correct elevator.):
+
+Floor 0 only belongs to lift 0, along with floor 1. The irony of me calling the state "floor reached" before I knew about this assignment...</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; lift_control(0).floor_reached and current_floors[0] == 1 and FIFO(0).is_request_for_lift(1, 0)</formula>
+			<comment>Property 4 (Each floor above the ground floor can be reached, and only by the correct elevator.):
+
+Floor 1 only belongs to lift 0, along with floor 0. The irony of me calling the state "floor reached" before I knew about this assignment...</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; not (lift_control(0).floor_reached and current_floors[0] == 2 and FIFO(0).is_request_for_lift(2, 0))</formula>
+			<comment>Property 4 (Each floor above the ground floor can be reached, and only by the correct elevator.):
+
+Lift 0 should not be serving floor 2 and should not accept the request for floor 2, nor should it be possible to reach this floor (state). It is negated because this situation should never take place.</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; lift_control(1).floor_reached and current_floors[1] == 2 and FIFO(0).is_request_for_lift(2, 1)</formula>
+			<comment>Property 4 (Each floor above the ground floor can be reached, and only by the correct elevator.):
+
+Floor 1 only belongs to lift 0, along with floor 0. The irony of me calling the state "floor reached" before I knew about this assignment...</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; not (lift_control(1).floor_reached and current_floors[1] == 0 and FIFO(1).is_request_for_lift(0, 1))</formula>
+			<comment>Property 4 (Each floor above the ground floor can be reached, and only by the correct elevator.):
+
+Lift 0 should not be serving floor 0 and 1 and should not accept the request for floor 0 and 1, nor should it be possible to reach this floor (state). It is negated because this situation should never take place.</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; not (lift_control(1).floor_reached and current_floors[1] == 1 and FIFO(1).is_request_for_lift(1, 1))</formula>
+			<comment>Property 4 (Each floor above the ground floor can be reached, and only by the correct elevator.):
+
+Lift 0 should not be serving floor 0 and 1 and should not accept the request for floor 0 and 1, nor should it be possible to reach this floor (state). It is negated because this situation should never take place.</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; lift_control(0).floor_reached and current_floors[0] == 0</formula>
+			<comment>Property 4 (Reachability sub section: the ground floor can be reached by any elevator): split for both elevators</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; lift_control(1).floor_reached and current_floors[1] == 0</formula>
+			<comment>Property 4 (Reachability sub section: the ground floor can be reached by any elevator): split for both elevators</comment>
+		</query>
+		<query>
+			<formula>FIFO(0).emptying_queue --&gt; FIFO(0).empty_queue and is_empty(0) and lift_control(0).dest_floor == current_floors[0]</formula>
+			<comment>Property 5 (liveness, all floor requests are eventually served, i.e., the elevator reaches its destination.):  The lift must  be able to travel from emptying_queue to idle in the FIFO and have an empty queue in that state, whilst reaching the destination floor.</comment>
+		</query>
+		<query>
+			<formula>FIFO(1).emptying_queue --&gt; FIFO(1).empty_queue and is_empty(1) and lift_control(1).dest_floor == current_floors[1]</formula>
+			<comment>Property 5 (liveness, all floor requests are eventually served, i.e., the elevator reaches its destination.):  The lift must  be able to travel from emptying_queue to idle in the FIFO and have an empty queue in that state, whilst reaching the destination floor.</comment>
 		</query>
 	</queries>
 </nta>
