@@ -563,9 +563,7 @@ dequeue(lift_id)</label>
 	<template>
 		<name>lift_control</name>
 		<parameter>const id_e lift_id</parameter>
-		<declaration>clock x;
-
-id_f dest_floor = 0; // the current destination
+		<declaration>id_f dest_floor = 0; // the current destination
 
 // Whether the elevator should move up or down
 int floors_to_travel = 0;
@@ -584,10 +582,6 @@ void update_floor_change(){
 		</location>
 		<location id="id8" x="-1156" y="-314">
 			<name x="-1199" y="-348">wait_for_door</name>
-			<label kind="invariant" x="-1198" y="-297">x &lt;= door_time</label>
-			<label kind="comments" x="-1198" y="-407">Timer was added to 
-prevent deadlocks in 
-this control</label>
 		</location>
 		<location id="id9" x="-1402" y="-314">
 			<name x="-1436" y="-348">open_doors</name>
@@ -606,10 +600,6 @@ this control</label>
 		</location>
 		<location id="id13" x="-918" y="-42">
 			<name x="-960" y="-76">closing_doors</name>
-			<label kind="invariant" x="-960" y="-25">x &lt;= door_time</label>
-			<label kind="comments" x="-1003" y="8">Timer was added to 
-prevent deadlocks in 
-this control</label>
 		</location>
 		<location id="id14" x="-1402" y="-42">
 			<name x="-1452" y="0">change_floors</name>
@@ -660,7 +650,6 @@ this control</label>
 		<transition>
 			<source ref="id8"/>
 			<target ref="id12"/>
-			<label kind="guard" x="-1088" y="-297">x &gt;= door_time</label>
 			<label kind="synchronisation" x="-1088" y="-314">door_open[lift_id]?</label>
 		</transition>
 		<transition>
@@ -675,7 +664,6 @@ this control</label>
 		<transition>
 			<source ref="id13"/>
 			<target ref="id7"/>
-			<label kind="guard" x="-1105" y="-42">x &gt;= door_time</label>
 			<label kind="synchronisation" x="-1105" y="-25">door_closed[lift_id]?</label>
 		</transition>
 		<transition>
@@ -684,8 +672,7 @@ this control</label>
 			<label kind="guard" x="-834" y="-34">dest_floor != current_floors[lift_id]</label>
 			<label kind="synchronisation" x="-833" y="-17">close_door[lift_id]!</label>
 			<label kind="assignment" x="-834" y="8">floors_to_travel := 
-abs(current_floors[lift_id] - dest_floor),
-x := 0</label>
+abs(current_floors[lift_id] - dest_floor)</label>
 			<label kind="comments" x="-833" y="68">Calculate the length of direction to travel in.
 Since the first flor needs to be reached, 
 we need the absolute value to be used.
@@ -701,7 +688,6 @@ if 1-0 = 1 (would go up otherwise).</label>
 			<source ref="id9"/>
 			<target ref="id8"/>
 			<label kind="synchronisation" x="-1343" y="-314">open_door[lift_id]!</label>
-			<label kind="assignment" x="-1343" y="-297">x := 0</label>
 		</transition>
 		<transition>
 			<source ref="id11"/>
