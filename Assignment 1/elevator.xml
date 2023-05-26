@@ -480,7 +480,7 @@ will_be_full(dest)</label>
 		<transition>
 			<source ref="id6"/>
 			<target ref="id3"/>
-			<label kind="assignment" x="273" y="-127">sort_queue(),
+			<label kind="assignment" x="272" y="-127">sort_queue(),
 set_lift_active(lift_id, true)</label>
 		</transition>
 		<transition>
@@ -581,7 +581,7 @@ void update_floor_change(){
 			<committed/>
 		</location>
 		<location id="id8" x="-1156" y="-314">
-			<name x="-1199" y="-348">wait_for_door</name>
+			<name x="-1199" y="-348">wait_for_doors</name>
 		</location>
 		<location id="id9" x="-1402" y="-314">
 			<name x="-1436" y="-348">open_doors</name>
@@ -1045,6 +1045,40 @@ Lift 0 should not be serving floor 0 and 1 and should not accept the request for
 		<query>
 			<formula>DGC(1).emptying_queue --&gt; DGC(1).empty_queue and is_empty(1) and lift_control(1).dest_floor == current_floors[1]</formula>
 			<comment>Property 5 (liveness, all floor requests are eventually served, i.e., the elevator reaches its destination.):  The lift must  be able to travel from emptying_queue to idle in the FIFO and have an empty queue in that state, whilst reaching the destination floor.</comment>
+		</query>
+		<query>
+			<formula>lift_control(0).active_to_idle --&gt; lift_control(0).idle</formula>
+			<comment>Property 6 (liveness: whenever the elevator serves: doors are open, passengers can exit. Part 1, can we get from active_to_idle)</comment>
+		</query>
+		<query>
+			<formula>lift_control(1).active_to_idle --&gt; lift_control(1).idle</formula>
+			<comment>Property 6 (liveness: whenever the elevator serves: doors are open, passengers can exit. Part 1, can we get from active_to_idle)</comment>
+		</query>
+		<query>
+			<formula>A[] not ((lift_control(0).closing_doors or lift_control(0).choose_direction or lift_control(0).change_floors or lift_control(0).floor_reached or lift_control(0).open_doors or lift_control(0).wait_for_doors) and cabin_door(0).open)</formula>
+			<comment>Property 6 (safety: whenever the elevator serves: doors are open, passengers can exit. Part 2, are the doors open in idle?)
+
+We should exclude the states where the door is closed, in order to keep the locations where the doors are open (and the passengers can exit). 
+The remaining states should have open doors: active_to_idle, idle, received_destination and closing_doors. This should globally be true, hence why it passes the safety check. 
+In other words, the doors should not be open in the states mentioned above.
+
+The passengers can exit, but the doors might instantly close in their face in real-life situations (I had to remove the wait for passenger to exit time for this assignment).
+
+Disclaimer: the doors could be closing in closing_doors state.
+
+</comment>
+		</query>
+		<query>
+			<formula>A[] not ((lift_control(1).closing_doors or lift_control(1).choose_direction or lift_control(1).change_floors or lift_control(1).floor_reached or lift_control(1).open_doors or lift_control(1).wait_for_doors) and cabin_door(1).open)</formula>
+			<comment>Property 6 (safety: whenever the elevator serves: doors are open, passengers can exit. Part 2, are the doors open in idle?)
+
+We should exclude the states where the door is closed, in order to keep the locations where the doors are open (and the passengers can exit). 
+The remaining states should have open doors: active_to_idle, idle, received_destination and closing_doors. This should globally be true, hence why it passes the safety check. 
+In other words, the doors should not be open in the states mentioned above.
+
+The passengers can exit, but the doors might instantly close in their face in real-life situations (I had to remove the wait for passenger to exit time for this assignment).
+
+Disclaimer: the doors could be closing in closing_doors state.</comment>
 		</query>
 	</queries>
 </nta>
