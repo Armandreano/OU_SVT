@@ -959,6 +959,10 @@ system button_zero, DGC, lift_control, engine, floor_sensors, cabin_door, protec
 			<comment>Property 1 (no deadlock) Checks whethere there are any deadlocks in the system (also used for property 1), is combined with liveness of nodes (nodes that do not have time passage are excluded from the liveness check)</comment>
 		</query>
 		<query>
+			<formula>lift_control(0) not deadlock</formula>
+			<comment></comment>
+		</query>
+		<query>
 			<formula>lift_control(0).closing_doors --&gt; lift_control(0).idle</formula>
 			<comment>Property 1 (liveness): Is it possible to get to our target location and then become idle again? We are skipping the state where we have to wait for the door, that state will be deadlocked in its own right. The idle transition will be deadlocked because time does not pass and queries are passed on from other automata. 
 
@@ -1079,6 +1083,14 @@ In other words, the doors should not be open in the states mentioned above.
 The passengers can exit, but the doors might instantly close in their face in real-life situations (I had to remove the wait for passenger to exit time for this assignment).
 
 Disclaimer: the doors could be closing in closing_doors state.</comment>
+		</query>
+		<query>
+			<formula>lift_control(0).closing_doors --&gt; lift_control(0).active_to_idle</formula>
+			<comment>Property 6 (liveness): can we also always reach the state where we open the doors?</comment>
+		</query>
+		<query>
+			<formula>lift_control(1).closing_doors --&gt; lift_control(1).active_to_idle</formula>
+			<comment>Property 6 (liveness): can we also always reach the state where we open the doors?</comment>
 		</query>
 	</queries>
 </nta>
