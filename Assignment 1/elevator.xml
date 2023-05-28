@@ -977,12 +977,16 @@ If one lift has a deadlock, the others do too.</comment>
 		<query>
 			<formula>A[] not ((engine(0).moving_down or engine(0).moving_up) and (cabin_door(0).open or cabin_door(0).executing))</formula>
 			<comment>Property 2(safety): There should not be any situation (~EG(~f)) where the lift doors should be oopen whilst changing floors (check for all lifts, in case we accidentally send information to wrong lift). 
-As long as the cabin_door is closed, the protecting doors are closed as well. It would also be problematic if the doors are in the executing state (opening or closing). Applied for the first lift (0)</comment>
+As long as the cabin_door is closed, the protecting doors are closed as well. It would also be problematic if the doors are in the executing state (opening or closing). Applied for the first lift (0)
+
+!d and (Eu or Ed) == not doors open || (engine moving up or engine moving down)</comment>
 		</query>
 		<query>
 			<formula>A[] not ((engine(1).moving_down or engine(1).moving_up) and (cabin_door(1).open or cabin_door(1).executing))</formula>
 			<comment>Property 2(safety): There should not be any situation (~EG(~f)) where the lift doors should be oopen whilst changing floors (check for all lifts, in case we accidentally send information to wrong lift). 
-As long as the cabin_door is closed, the protecting doors are closed as well. It would also be problematic if the doors are in the executing state (opening or closing). Also applies to the second lift.</comment>
+As long as the cabin_door is closed, the protecting doors are closed as well. It would also be problematic if the doors are in the executing state (opening or closing). Also applies to the second lift.
+
+!d and (Eu or Ed) == not doors open || (engine moving up or engine moving down)</comment>
 		</query>
 		<query>
 			<formula>E&lt;&gt; is_full(0) and DGC(0).ready_to_go and current_floors[0] == get_peak_service_floor(0) and not current_floors[0] != get_peak_service_floor(0)</formula>
@@ -1073,6 +1077,10 @@ Disclaimer: the doors could be closing in closing_doors state.
 </comment>
 		</query>
 		<query>
+			<formula>E&lt;&gt; cabin_door(0).open and (lift_control(0).active_to_idle or lift_control(0).idle)</formula>
+			<comment></comment>
+		</query>
+		<query>
 			<formula>A[] not ((lift_control(1).closing_doors or lift_control(1).choose_direction or lift_control(1).change_floors or lift_control(1).floor_reached or lift_control(1).open_doors or lift_control(1).wait_for_doors) and cabin_door(1).open)</formula>
 			<comment>Property 6 (safety: whenever the elevator serves: doors are open, passengers can exit. Part 2, are the doors open in idle?)
 
@@ -1083,6 +1091,10 @@ In other words, the doors should not be open in the states mentioned above.
 The passengers can exit, but the doors might instantly close in their face in real-life situations (I had to remove the wait for passenger to exit time for this assignment).
 
 Disclaimer: the doors could be closing in closing_doors state.</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; cabin_door(1).open and (lift_control(1).active_to_idle or lift_control(1).idle)</formula>
+			<comment></comment>
 		</query>
 		<query>
 			<formula>lift_control(0).closing_doors --&gt; lift_control(0).active_to_idle</formula>
