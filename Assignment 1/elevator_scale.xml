@@ -1,0 +1,1100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!DOCTYPE nta PUBLIC '-//Uppaal Team//DTD Flat System 1.1//EN' 'http://www.it.uu.se/research/group/darts/uppaal/flat-1_2.dtd'>
+<nta>
+	<declaration>// Place global declarations here.
+
+// Main comment: I apologize in advance due to me using lifts and elevators in concjunction. I am used to saying lift because I speak British Englis at home.
+
+// constants and variable related to number of floors
+const int F = 3;         // # floors
+typedef int[0,F-1] id_f; // floor id from 0 to N-1
+
+// Stolen definition from Floor declarations (above)
+const int L = 3;         // # lifts (UK English). F and E are too similar in this poorly readable font of this program.
+typedef int[0, L-1] id_e;// elevator ID from 0 to N-1
+
+// Allows for scalability of amount of possible requests
+const int handler_size = 5;
+
+// maximum amount of possible requests 
+typedef int[0, handler_size] id_r;
+
+// The array has been divided by the amount of lifts, plus added one to take care of the uneven division.
+// There could be less floors than lifts F&lt;L == 0, one lift F/1 = F, or more floors than there are lifts. 
+// The first situation is special and requires a different subdivision.
+id_f floors_per_lift(){
+    id_f size = 0;
+
+    // Equality is key, there are problems when the number of elevators are unequal
+    // compared the number of floors
+
+    // Problematic assignments are checked here
+    if(F == 1 &amp;&amp; L &gt; 1 || F &lt; L)
+    {
+        size = F;
+    }
+    if(F &gt;= L &amp;&amp; L == 1)
+    {
+        return F - 1;
+    }
+    // There are no problems when the number of lifts are equal or smaller than the number of floors 
+    else
+    {
+        size = F / L;
+    }
+
+    return size;
+}
+
+// the floor serving plan for all elevators
+typedef struct {
+    id_f min;
+    id_f max;
+    id_f peak_service_floor; // The floor to return to with high requests
+} floors_to_serve;
+
+// Do not wait more than 4 seconds (buttons are called every cycle, it could be filled up after 4 seconds)
+const int queue_wait_time = 4; 
+
+// The active floor serving plan
+floors_to_serve active_floor_serving_plan[L];
+// Whether the system is accepting requests
+bool active_service = false;
+
+// queues storing the requests.
+typedef struct  
+{
+    id_f queue[handler_size];
+    int[0,handler_size] length;
+    bool active;
+} fifo;
+
+fifo queues[id_e];
+
+// cabin door channels and constants
+chan open_door[id_e], close_door[id_e], door_open[id_e], door_closed[id_e]; // channels for a door
+const int door_time = 2;     // time to open or close the door
+
+// protecting door channels and constants
+chan open_pdoor[id_e][id_f], close_pdoor[id_e][id_f], pdoor_open[id_e][id_f], pdoor_closed[id_e][id_f]; // channels for a door
+
+// engine channels
+chan stop[id_e], move_down[id_e], move_up[id_e];
+
+// floor sensors channels and constants
+const int floor_time = 1; // time to travel one floor
+chan start_sensors[id_e], stop_sensors[id_e], reach_floor[id_e];
+
+// To ensure that passengers can get in and out before the doors close
+const int passenger_wait_time = 5; // Perhaps this should be shorter?
+
+// button channels
+chan req[id_f][id_f];
+
+// communications between RequestHandler and MainControl
+chan go[id_e], served[id_e];
+
+// The current floor of the elevator:
+id_f current_floors[L]; 
+
+// The floor to which the main control is requested to go to.
+// This variable is just used for communication between the request handler and the main control.
+// Therefore, we can declare it meta (i.e., not part of the state).
+meta id_f target_floor;
+
+void activate_service(bool active)
+{
+    active_service = active;
+}
+
+// Get the floor that the lift is supposed to be serving (can be altered by another template)
+id_f get_peak_service_floor(id_e lift_id)
+{
+    return active_floor_serving_plan[lift_id].peak_service_floor;
+}
+
+// Activate the lift (no longer taking requests)
+void set_lift_active(id_e lift_id, bool active)
+{
+    queues[lift_id].active = active;
+}
+
+// Put an element at the end of the queue
+void enqueue(id_e lift_id, id_f floor_id)
+{
+        // Apparently the code on the next line causes errors?
+        //int length = queues[lift_id].length;
+
+        // Previous code line would have helped with readability.
+        queues[lift_id].queue[queues[lift_id].length] = floor_id;
+
+        queues[lift_id].length++;
+}
+
+// Returns the front element of the queue
+id_f front(id_e lift_id)
+{
+   return queues[lift_id].queue[0];
+}
+
+// Returns the last element of the queue
+id_f last(id_e lift_id)
+{
+    fifo lift_fifo = queues[lift_id];
+
+   return lift_fifo.queue[lift_fifo.length - 1];
+}
+
+// Whether one of the queues is empty or not
+bool is_empty(id_e lift_id)
+{
+	return queues[lift_id].length == 0;
+}
+
+bool will_be_empty(id_e lift_id)
+{
+    return queues[lift_id].length - 1 == 0;
+}
+
+// Whether one of the queues is full or not
+bool is_full(id_e lift_id)
+{
+	return queues[lift_id].length == handler_size;
+}
+
+// Remove the front element of the queue
+void dequeue(id_e lift_id)
+{
+        int i = 0;
+        queues[lift_id].length -= 1;
+
+        // Iterate and dequeue
+        while (i &lt; queues[lift_id].length)
+        {
+                queues[lift_id].queue[i] = queues[lift_id].queue[i + 1];
+                i++;
+        }
+        
+        // Set the last entry to 0, because first entry was removed
+        queues[lift_id].queue[i] = 0;
+}
+
+// Clear all entries of a queue
+void clear_queue(id_e lift_id)
+{
+    id_f i = 0;
+
+    // Do not stop iterating until all entries have been cleared
+    while(i &lt; queues[lift_id].length)
+    {
+        // Remove all entries
+        queues[lift_id].queue[i] = 0;
+        
+        // Increment iterator
+        i++;
+        
+        // Decrease the length
+        queues[lift_id].length--;
+    }
+}
+
+// swap to values, via pointers (UPPAAL code)
+void swap(id_f &amp;a, id_f &amp;b)
+{
+    id_f c = a;
+    a = b;
+    b = c;
+}
+
+// TODO: There is a bug in this function
+// Dequeue a range instead of just one entry
+void dequeue_range(id_f index, int end, id_e lift_id)
+{
+    id_f start = index;
+
+    id_r reduction = 0;
+
+    // Remove or empty the queue (from start to beginning)
+    if(index == 0 &amp;&amp; end == queues[lift_id].length -1)
+    {
+        clear_queue(lift_id);
+    }
+    // Remove the range
+    else if(index != 0 &amp;&amp; end &lt;= queues[lift_id].length -1)
+    {
+        // Make sure we copy from above end and that we cannot go out of bounds
+        id_f stop = end + (end &lt; queues[lift_id].length - 1 ? 1 : 0);
+
+        while(stop &lt; queues[lift_id].length)
+        {
+            // Empty the value
+            queues[lift_id].queue[start] = 0;
+            // Swap the empty value with the value after the end of the range
+            swap(queues[lift_id].queue[start], queues[lift_id].queue[end]);
+
+            // Out of bounds check
+            if(stop + 1 &lt; queues[lift_id].length)
+            {
+                // Increase iterations
+                reduction++;
+                start++;
+                stop++;
+            }
+        }
+    }
+    
+    // Reduce the size by the amount removed
+    queues[lift_id].length -= reduction;
+}
+
+void divide_floors_equal_larger_than_lifts(const int floors_per_lift)
+{
+
+    // the remainder to be divided amongst the lifts
+    id_f remainder = F % L;
+    
+    // The floor count that have been passed (currently none)
+    id_f current_floor = 0;
+
+    // Go through all of the lifts (there should be no floors left afterwards
+
+
+    if(L == 1)
+    {
+        active_floor_serving_plan[0].min = 0;
+        // End floor for this lift
+        active_floor_serving_plan[0].max = F - 1;
+    }
+    else 
+    {
+        for(i : int[0, L-1])
+        {
+            // Add the starting floor
+            active_floor_serving_plan[i].min = current_floor;
+            // End floor for this lift
+            active_floor_serving_plan[i].max = current_floor + floors_per_lift - 1;
+        
+            // Update the current maximum floor for the next lift
+            if(i + 1 &lt; L) 
+               current_floor += floors_per_lift;
+
+            // Equally divide the remainder of the code
+            if(remainder &gt; 0)
+            {
+                // Update the floor serving plan with an extra remaing floor
+                active_floor_serving_plan[i].max++;
+                // Reduce the amount of floors remaining
+                remainder--;
+            
+                // Update the starting floor for the next lift as well
+                current_floor++;
+            }
+        }
+    }
+}
+
+void divide_floors_smaller_than_lifts(const int floors_per_lift)
+{
+    int current_floor = 0;
+
+    for(e : id_e)
+    { 
+        // Grab whatever is remaining and start count at 0 (could lead to uneven distribution)
+        if(current_floor + floors_per_lift &gt;= F)
+        {
+            // Add the starting floor
+            active_floor_serving_plan[e].min = current_floor;
+            // End floor for this lift
+            active_floor_serving_plan[e].max = F - 1;
+            
+            // reset the counter
+            current_floor = 0;
+        }
+        else
+        {// In most cases there will only be one lift per floor, but it is possible to get more
+            // Add the starting floor
+            active_floor_serving_plan[e].min = current_floor;
+            // End floor for this lift
+            active_floor_serving_plan[e].max = current_floor + floors_per_lift - 1;
+            current_floor += floors_per_lift;
+        }  
+    }
+}
+
+// TODO: FIX F &lt; L
+void divide_floors_per_lift(){
+    // Calculate how many floors there are per left
+    id_f floors_per_lift = floors_per_lift();
+
+    // Counting on the fact that divising higher denominator than a numerator will always be 0 as an integer (1/2, 1/3, ... 1/n)
+    if(F &gt;= L)
+    { // Assigning floors is easier when the amount of floors is equal or higher to the amount of lifts. than when its not
+        divide_floors_equal_larger_than_lifts(floors_per_lift);
+    }
+    else
+    { //higher denominator
+        // Now comes the harder part... 
+        // Assigning floors for a system where the number of floors are larger than the number of lifts
+        int divisor = 2;
+        
+        while(L / divisor &gt;= F)
+        {
+            divisor++;
+        }    
+        
+        floors_per_lift = F /  (L / divisor); // Should be one or more
+        divide_floors_smaller_than_lifts(floors_per_lift);
+    }
+}
+
+</declaration>
+	<template>
+		<name>DGC</name>
+		<parameter>id_e lift_id</parameter>
+		<declaration>// The dummy request handler gets requests from the button.
+// When these are received, they are stored in the following local variable.
+id_f current_req;
+
+// 30 second clock timer
+// and to make sure that the elevator can wait for passengers to enter and exit
+clock x;
+
+// https://www.programiz.com/dsa/insertion-sort
+// Insertion sort is fastest for smaller arrays (this one has 5 entries)
+void insertion_sort() {
+    const int size = handler_size;
+    int i;
+
+    for (i = 0; i &lt; size; i++) {
+      int key = queues[lift_id].queue[i];
+      int j = i - 1;
+
+      // Compare key with each element on the left of it until an element smaller than
+      // it is found.
+      // For descending order, change key&lt;array[j] to key&gt;array[j].
+      while (j &gt;= 0 &amp;&amp; key &lt; queues[lift_id].queue[j]) {
+        queues[lift_id].queue[j + 1] = queues[lift_id].queue[j];
+        --j;
+      }
+
+      // Place key at after the element just smaller than it.
+      queues[lift_id].queue[j + 1] = key;
+    }
+}
+
+// Code for checking whether the request is for a floor
+bool is_request_for_lift(id_f request, id_e lift_id)
+{
+    // Get the floor plan from the lift
+    floors_to_serve service_plan = active_floor_serving_plan[lift_id];
+
+    // The floor that needs to be served needs to be between its minimum and maximum
+    return request &gt;= service_plan.min &amp;&amp; request &lt;= service_plan.max;
+}
+
+// Remove other entries in queue for the same floor
+void service_same_destination()
+{
+    // get the current floor
+    id_f serviced_floor = current_floors[lift_id];
+    // Start from the beginning of the queue
+    int i = 0;
+    // Assume that we have found the same floor
+    bool same_floor = true;
+
+    // Only remove floors if we are on the same floor and we have not gone out of bounds
+    while(same_floor &amp;&amp; i &lt; handler_size)
+    {
+       // Check the assumption whether the entry is on the same floor     
+        same_floor = queues[lift_id].queue[i] == serviced_floor;
+        
+        // increment
+        if(same_floor)
+            i++;
+    }
+    
+    // TODO: Broken, fix it
+    // Remove all entries from the queue that are the same
+    // O(n^2, instead of O(N!)
+    //if(i &gt; 0)
+    //    dequeue_range(0, i, lift_id);
+
+    // Remove all entries from the queue that are the same
+    while(i &gt; 0 &amp;&amp; queues[lift_id].length &gt; 0)
+    {
+        dequeue(lift_id); // TODO: O(N!), should only be done once  
+        i--; // the counter will always be 1 higher than it should be (because of the increment)
+    }
+}
+
+// Sort the queue before continuing
+void sort_queue()
+{
+    if(handler_size &lt; 20) // fastest when under 20 entries
+        insertion_sort();    
+}
+
+// Will the request be full after receiving it?
+bool will_be_full(id_f request)
+{
+    return queues[lift_id].length + 1 == handler_size;
+}
+
+
+void receive_request(id_f request)
+{
+    // Is the request for the current lift?
+    bool receive = is_request_for_lift(request, lift_id);
+    
+    // If the service is not active yet, make sure all variables are set.
+    if(!active_service)
+    {
+        divide_floors_per_lift();
+        activate_service(true);
+    }
+   
+    // Are we supposed to receive this request?
+    if(receive)
+        enqueue(lift_id, request);
+}</declaration>
+		<location id="id0" x="357" y="170">
+			<name x="331" y="187">servicing</name>
+		</location>
+		<location id="id1" x="-442" y="-127">
+			<name x="-484" y="-135">idle</name>
+		</location>
+		<location id="id2" x="-111" y="-127">
+			<name x="-272" y="-152">wait_for_queue_to_fill</name>
+			<label kind="invariant" x="-255" y="-119">x &lt;= queue_wait_time and
+!is_full(lift_id)</label>
+		</location>
+		<location id="id3" x="357" y="-127">
+			<name x="323" y="-161">emptying_queue</name>
+			<committed/>
+		</location>
+		<location id="id4" x="-442" y="170">
+			<name x="-663" y="161">return_to_peak_service_floor</name>
+			<label kind="comments" x="-663" y="187">This state must exist because 
+not all floors are served 
+equally. The elevator must be 
+able to return to its 
+peak-service floor 
+(default: 0).</label>
+		</location>
+		<location id="id5" x="25" y="170">
+			<name x="-17" y="187">empty_queue</name>
+			<committed/>
+		</location>
+		<init ref="id0"/>
+		<transition>
+			<source ref="id3"/>
+			<target ref="id5"/>
+			<label kind="guard" x="229" y="76">is_empty(lift_id)</label>
+			<nail x="229" y="68"/>
+		</transition>
+		<transition>
+			<source ref="id2"/>
+			<target ref="id3"/>
+			<label kind="select" x="42" y="-68">ori : id_f, dest : id_f</label>
+			<label kind="guard" x="42" y="-51">is_request_for_lift(dest, lift_id) &amp;&amp; 
+will_be_full(dest)</label>
+			<label kind="synchronisation" x="42" y="-17">req[ori][dest]?</label>
+			<label kind="assignment" x="42" y="0">receive_request(dest),
+sort_queue(),
+set_lift_active(lift_id, true)</label>
+			<nail x="25" y="-68"/>
+			<nail x="195" y="-69"/>
+		</transition>
+		<transition>
+			<source ref="id2"/>
+			<target ref="id2"/>
+			<label kind="select" x="-179" y="-289">ori : id_f, dest : id_f</label>
+			<label kind="guard" x="-179" y="-323">is_request_for_lift(dest, lift_id) &amp;&amp; 
+!will_be_full(dest)</label>
+			<label kind="synchronisation" x="-179" y="-272">req[ori][dest]?</label>
+			<label kind="assignment" x="-179" y="-255">receive_request(dest)</label>
+			<nail x="-35" y="-229"/>
+			<nail x="-187" y="-229"/>
+		</transition>
+		<transition>
+			<source ref="id1"/>
+			<target ref="id2"/>
+			<label kind="select" x="-400" y="-203">ori : id_f, dest : id_f</label>
+			<label kind="guard" x="-400" y="-220">is_request_for_lift(dest, lift_id)</label>
+			<label kind="synchronisation" x="-399" y="-186">req[ori][dest]?</label>
+			<label kind="assignment" x="-400" y="-169">receive_request(dest), 
+x := 0</label>
+		</transition>
+		<transition>
+			<source ref="id5"/>
+			<target ref="id1"/>
+			<label kind="guard" x="-366" y="33">current_floors[lift_id] == get_peak_service_floor(lift_id)</label>
+			<label kind="assignment" x="-366" y="59">set_lift_active(lift_id, false)</label>
+			<nail x="-94" y="85"/>
+			<nail x="-374" y="85"/>
+		</transition>
+		<transition>
+			<source ref="id0"/>
+			<target ref="id5"/>
+			<label kind="guard" x="136" y="204">is_empty(lift_id)</label>
+			<label kind="synchronisation" x="136" y="187">served[lift_id]?</label>
+		</transition>
+		<transition>
+			<source ref="id4"/>
+			<target ref="id1"/>
+			<label kind="synchronisation" x="-620" y="68">served[lift_id]?</label>
+			<label kind="assignment" x="-620" y="85">set_lift_active(lift_id, false)</label>
+		</transition>
+		<transition>
+			<source ref="id2"/>
+			<target ref="id3"/>
+			<label kind="guard" x="42" y="-229">x &gt;= queue_wait_time</label>
+			<label kind="assignment" x="42" y="-212">sort_queue(),
+set_lift_active(lift_id, true)</label>
+			<nail x="33" y="-169"/>
+			<nail x="195" y="-170"/>
+		</transition>
+		<transition>
+			<source ref="id3"/>
+			<target ref="id0"/>
+			<label kind="guard" x="374" y="-34">!is_empty(lift_id)</label>
+			<label kind="synchronisation" x="374" y="-17">go[lift_id]!</label>
+			<label kind="assignment" x="374" y="8">target_floor = front(lift_id),
+dequeue(lift_id)</label>
+		</transition>
+		<transition>
+			<source ref="id5"/>
+			<target ref="id4"/>
+			<label kind="guard" x="-391" y="195">current_floors[lift_id] != get_peak_service_floor(lift_id)</label>
+			<label kind="synchronisation" x="-391" y="212">go[lift_id]!</label>
+			<label kind="assignment" x="-391" y="229">target_floor = get_peak_service_floor(lift_id)</label>
+		</transition>
+		<transition>
+			<source ref="id0"/>
+			<target ref="id3"/>
+			<label kind="guard" x="612" y="0">!is_empty(lift_id)</label>
+			<label kind="synchronisation" x="612" y="17">served[lift_id]?</label>
+			<label kind="assignment" x="612" y="34">service_same_destination()</label>
+			<nail x="595" y="170"/>
+			<nail x="595" y="-127"/>
+		</transition>
+	</template>
+	<template>
+		<name>lift_control</name>
+		<parameter>const id_e lift_id</parameter>
+		<declaration>id_f dest_floor = 0; // the current destination
+
+// Whether the elevator should move up or down
+int floors_to_travel = 0;
+
+// Update the floor based on the direction of travel
+void update_floor_change(){
+    // Calculate the direction the lift should be updated to and set value
+    current_floors[lift_id] += current_floors[lift_id] &gt; dest_floor ? -1 : 1;
+
+    // Update the floors that still need to be traversed
+    floors_to_travel -= 1;
+}</declaration>
+		<location id="id6" x="-1139" y="-42">
+			<name x="-1149" y="-76">choose_direction</name>
+			<committed/>
+		</location>
+		<location id="id7" x="-1156" y="-314">
+			<name x="-1199" y="-348">wait_for_doors</name>
+		</location>
+		<location id="id8" x="-1402" y="-314">
+			<name x="-1436" y="-348">open_doors</name>
+			<committed/>
+		</location>
+		<location id="id9" x="-586" y="-42">
+			<name x="-595" y="-25">received_destination</name>
+			<committed/>
+		</location>
+		<location id="id10" x="-585" y="-314">
+			<name x="-595" y="-348">idle</name>
+		</location>
+		<location id="id11" x="-901" y="-314">
+			<name x="-944" y="-348">active_to_idle</name>
+			<committed/>
+		</location>
+		<location id="id12" x="-918" y="-42">
+			<name x="-960" y="-76">closing_doors</name>
+		</location>
+		<location id="id13" x="-1402" y="-42">
+			<name x="-1452" y="0">change_floors</name>
+			<label kind="comments" x="-1470" y="51">There is no need for an 
+invariant because we are 
+anticipating change with 
+the guards</label>
+		</location>
+		<location id="id14" x="-1402" y="-187">
+			<name x="-1385" y="-195">floor_reached</name>
+			<committed/>
+		</location>
+		<init ref="id8"/>
+		<transition>
+			<source ref="id13"/>
+			<target ref="id14"/>
+			<label kind="guard" x="-1572" y="-170">floors_to_travel - 1 == 0</label>
+			<label kind="synchronisation" x="-1572" y="-153">reach_floor[lift_id]?</label>
+			<label kind="assignment" x="-1572" y="-136">update_floor_change()</label>
+		</transition>
+		<transition>
+			<source ref="id13"/>
+			<target ref="id13"/>
+			<label kind="guard" x="-1657" y="-68">floors_to_travel - 1 &gt; 0</label>
+			<label kind="synchronisation" x="-1657" y="-51">reach_floor[lift_id]?</label>
+			<label kind="assignment" x="-1656" y="-34">update_floor_change()</label>
+			<nail x="-1495" y="17"/>
+			<nail x="-1495" y="-93"/>
+		</transition>
+		<transition>
+			<source ref="id14"/>
+			<target ref="id8"/>
+			<label kind="guard" x="-1394" y="-237">floors_to_travel == 0</label>
+			<label kind="synchronisation" x="-1394" y="-254">stop[lift_id]!</label>
+		</transition>
+		<transition>
+			<source ref="id6"/>
+			<target ref="id13"/>
+			<label kind="guard" x="-1335" y="-110">dest_floor &lt; current_floors[lift_id]</label>
+			<label kind="synchronisation" x="-1335" y="-93">move_down[lift_id]!</label>
+			<nail x="-1190" y="-93"/>
+			<nail x="-1352" y="-93"/>
+		</transition>
+		<transition>
+			<source ref="id6"/>
+			<target ref="id13"/>
+			<label kind="guard" x="-1335" y="17">dest_floor &gt; current_floors[lift_id]</label>
+			<label kind="synchronisation" x="-1335" y="0">move_up[lift_id]!</label>
+			<nail x="-1182" y="17"/>
+			<nail x="-1352" y="17"/>
+		</transition>
+		<transition>
+			<source ref="id7"/>
+			<target ref="id11"/>
+			<label kind="synchronisation" x="-1088" y="-314">door_open[lift_id]?</label>
+		</transition>
+		<transition>
+			<source ref="id9"/>
+			<target ref="id10"/>
+			<label kind="guard" x="-433" y="-187">dest_floor == current_floors[lift_id]</label>
+			<label kind="synchronisation" x="-383" y="-162">served[lift_id]!</label>
+			<label kind="comments" x="-433" y="-204">Destination is the same as soruce</label>
+			<nail x="-442" y="-42"/>
+			<nail x="-442" y="-314"/>
+		</transition>
+		<transition>
+			<source ref="id12"/>
+			<target ref="id6"/>
+			<label kind="synchronisation" x="-1105" y="-25">door_closed[lift_id]?</label>
+		</transition>
+		<transition>
+			<source ref="id9"/>
+			<target ref="id12"/>
+			<label kind="guard" x="-834" y="-34">dest_floor != current_floors[lift_id]</label>
+			<label kind="synchronisation" x="-833" y="-17">close_door[lift_id]!</label>
+			<label kind="assignment" x="-834" y="8">floors_to_travel := 
+abs(current_floors[lift_id] - dest_floor)</label>
+			<label kind="comments" x="-833" y="68">Calculate the length of direction to travel in.
+Since the first flor needs to be reached, 
+we need the absolute value to be used.
+Regular target direction would be a problem 
+if 1-0 = 1 (would go up otherwise).</label>
+		</transition>
+		<transition>
+			<source ref="id11"/>
+			<target ref="id10"/>
+			<label kind="synchronisation" x="-841" y="-314">served[lift_id]!</label>
+		</transition>
+		<transition>
+			<source ref="id8"/>
+			<target ref="id7"/>
+			<label kind="synchronisation" x="-1343" y="-314">open_door[lift_id]!</label>
+		</transition>
+		<transition>
+			<source ref="id10"/>
+			<target ref="id9"/>
+			<label kind="synchronisation" x="-748" y="-195">go[lift_id]?</label>
+			<label kind="assignment" x="-748" y="-178">dest_floor := target_floor</label>
+		</transition>
+	</template>
+	<template>
+		<name>button</name>
+		<parameter>id_f ori</parameter>
+		<declaration>clock x;</declaration>
+		<location id="id15" x="-32" y="-8">
+		</location>
+		<init ref="id15"/>
+		<transition>
+			<source ref="id15"/>
+			<target ref="id15"/>
+			<label kind="select" x="-48" y="-112">dest : id_f</label>
+			<label kind="guard" x="-48" y="-96">x &gt;=1</label>
+			<label kind="synchronisation" x="-48" y="-80">req[ori][dest]!</label>
+			<label kind="assignment" x="-48" y="-64">x=0</label>
+			<nail x="-64" y="-48"/>
+			<nail x="0" y="-48"/>
+		</transition>
+	</template>
+	<template>
+		<name>engine</name>
+		<parameter>const id_e lift_id</parameter>
+		<declaration>clock x;</declaration>
+		<location id="id16" x="51" y="-212">
+			<name x="41" y="-246">moving_up</name>
+			<committed/>
+		</location>
+		<location id="id17" x="-306" y="-212">
+			<name x="-382" y="-246">moving_down</name>
+			<committed/>
+		</location>
+		<location id="id18" x="-127" y="-212">
+			<name x="-137" y="-242">Idle</name>
+		</location>
+		<location id="id19" x="-127" y="-51">
+			<name x="-195" y="-77">moving</name>
+			<label kind="invariant" x="-110" y="-77">x &lt;= floor_time</label>
+		</location>
+		<init ref="id18"/>
+		<transition>
+			<source ref="id16"/>
+			<target ref="id19"/>
+			<label kind="assignment" x="-17" y="-51">x := 0</label>
+			<nail x="51" y="-51"/>
+		</transition>
+		<transition>
+			<source ref="id17"/>
+			<target ref="id19"/>
+			<label kind="assignment" x="-288" y="-51">x := 0</label>
+			<nail x="-306" y="-51"/>
+		</transition>
+		<transition>
+			<source ref="id18"/>
+			<target ref="id17"/>
+			<label kind="synchronisation" x="-280" y="-238">move_down[lift_id]?</label>
+		</transition>
+		<transition>
+			<source ref="id19"/>
+			<target ref="id18"/>
+			<label kind="synchronisation" x="-110" y="-136">stop[lift_id]?</label>
+		</transition>
+		<transition>
+			<source ref="id18"/>
+			<target ref="id16"/>
+			<label kind="synchronisation" x="-93" y="-238">move_up[lift_id]?</label>
+		</transition>
+		<transition>
+			<source ref="id19"/>
+			<target ref="id19"/>
+			<label kind="guard" x="-170" y="77">x &gt;= floor_time</label>
+			<label kind="synchronisation" x="-170" y="93">reach_floor[lift_id]!</label>
+			<label kind="assignment" x="-170" y="109">x := 0</label>
+			<nail x="-204" y="68"/>
+			<nail x="-42" y="68"/>
+		</transition>
+	</template>
+	<template>
+		<name>floor_sensors</name>
+		<parameter>const id_e lift_id</parameter>
+		<declaration>clock x;</declaration>
+		<location id="id20" x="32" y="-24">
+			<name x="40" y="-72">moving</name>
+			<label kind="invariant" x="40" y="-56">x &lt;= floor_time</label>
+		</location>
+		<location id="id21" x="-200" y="-24">
+			<name x="-264" y="-16">idle</name>
+		</location>
+		<init ref="id21"/>
+		<transition>
+			<source ref="id20"/>
+			<target ref="id21"/>
+			<label kind="synchronisation" x="-120" y="-112">stop_sensors[lift_id]?</label>
+			<nail x="32" y="-88"/>
+			<nail x="-200" y="-88"/>
+		</transition>
+		<transition>
+			<source ref="id20"/>
+			<target ref="id20"/>
+			<label kind="guard" x="136" y="-24">x &gt;= floor_time</label>
+			<label kind="synchronisation" x="136" y="-8">reach_floor[lift_id]!</label>
+			<label kind="assignment" x="136" y="8">x := 0</label>
+			<nail x="128" y="-24"/>
+			<nail x="128" y="32"/>
+		</transition>
+		<transition>
+			<source ref="id21"/>
+			<target ref="id20"/>
+			<label kind="synchronisation" x="-128" y="-48">start_sensors[lift_id]?</label>
+			<label kind="assignment" x="-104" y="-16">x := 0</label>
+		</transition>
+	</template>
+	<template>
+		<name>cabin_door</name>
+		<parameter>const id_e lift_id</parameter>
+		<declaration>clock x;</declaration>
+		<location id="id22" x="-51" y="34">
+			<name x="-61" y="0">opening</name>
+			<label kind="invariant" x="-61" y="51">x &lt;= 2 * door_time</label>
+			<committed/>
+		</location>
+		<location id="id23" x="-51" y="-161">
+			<name x="-61" y="-195">closing</name>
+			<label kind="invariant" x="-61" y="-144">x &lt;= 2 * door_time</label>
+			<committed/>
+		</location>
+		<location id="id24" x="221" y="-85">
+			<name x="237" y="-93">closed</name>
+		</location>
+		<location id="id25" x="-323" y="-86">
+			<name x="-371" y="-94">open</name>
+		</location>
+		<init ref="id24"/>
+		<transition>
+			<source ref="id22"/>
+			<target ref="id25"/>
+			<label kind="guard" x="-435" y="-46">x &gt;= 2 * door_time</label>
+			<label kind="synchronisation" x="-459" y="-23">door_open[lift_id]!</label>
+			<label kind="assignment" x="-383" y="-6">x := 0</label>
+			<nail x="-323" y="34"/>
+			<nail x="-323" y="-46"/>
+		</transition>
+		<transition>
+			<source ref="id24"/>
+			<target ref="id22"/>
+			<label kind="synchronisation" x="229" y="-25">open_door[lift_id]?</label>
+			<label kind="assignment" x="229" y="-13">x := 0</label>
+			<nail x="221" y="34"/>
+		</transition>
+		<transition>
+			<source ref="id23"/>
+			<target ref="id24"/>
+			<label kind="guard" x="229" y="-181">x &gt;= 2 * door_time</label>
+			<label kind="synchronisation" x="229" y="-165">door_closed[lift_id]!</label>
+			<label kind="assignment" x="229" y="-149">x := 0</label>
+			<nail x="221" y="-161"/>
+			<nail x="221" y="-141"/>
+		</transition>
+		<transition>
+			<source ref="id25"/>
+			<target ref="id23"/>
+			<label kind="synchronisation" x="-468" y="-185">close_door[lift_id]?</label>
+			<label kind="assignment" x="-395" y="-166">x := 0</label>
+			<nail x="-323" y="-158"/>
+			<nail x="-323" y="-161"/>
+		</transition>
+	</template>
+	<template>
+		<name>protecting_door</name>
+		<parameter>id_e e, id_f f</parameter>
+		<declaration>clock x;</declaration>
+		<location id="id26" x="-112" y="8">
+			<name x="-144" y="24">executing_open</name>
+			<label kind="invariant" x="-144" y="40">x &lt;= door_time</label>
+		</location>
+		<location id="id27" x="40" y="-96">
+			<name x="56" y="-104">closed</name>
+		</location>
+		<location id="id28" x="-112" y="-120">
+			<name x="-96" y="-120">executing</name>
+			<label kind="invariant" x="-144" y="-104">x &lt;= door_time</label>
+		</location>
+		<location id="id29" x="-232" y="-104">
+			<name x="-280" y="-112">open</name>
+		</location>
+		<init ref="id27"/>
+		<transition>
+			<source ref="id26"/>
+			<target ref="id29"/>
+			<label kind="guard" x="-425" y="-75">x &gt;= door_time</label>
+			<label kind="synchronisation" x="-425" y="-59">pdoor_open[e][f]!</label>
+			<label kind="assignment" x="-425" y="-43">x := 0</label>
+			<nail x="-232" y="8"/>
+		</transition>
+		<transition>
+			<source ref="id27"/>
+			<target ref="id26"/>
+			<label kind="synchronisation" x="48" y="-64">open_pdoor[e][f]?</label>
+			<label kind="assignment" x="48" y="-32">x := 0</label>
+			<nail x="40" y="-32"/>
+			<nail x="40" y="8"/>
+		</transition>
+		<transition>
+			<source ref="id28"/>
+			<target ref="id27"/>
+			<label kind="guard" x="-88" y="-200">x &gt;= door_time</label>
+			<label kind="synchronisation" x="-85" y="-187">pdoor_closed[e][f]!</label>
+			<label kind="assignment" x="-88" y="-168">x := 0</label>
+			<nail x="-96" y="-152"/>
+			<nail x="40" y="-152"/>
+		</transition>
+		<transition>
+			<source ref="id29"/>
+			<target ref="id28"/>
+			<label kind="synchronisation" x="-297" y="-187">close_pdoor[e][f]?</label>
+			<label kind="assignment" x="-200" y="-168">x := 0</label>
+			<nail x="-232" y="-152"/>
+			<nail x="-128" y="-152"/>
+		</transition>
+	</template>
+	<system>// Place template instantiations here.
+
+button_zero = button(0); // Only create one button
+
+// List one or more processes to be composed into a system.
+system button_zero, DGC, lift_control, engine, cabin_door; </system>
+	<queries>
+		<query>
+			<formula>A[] not deadlock</formula>
+			<comment>Property 1 (no deadlock) Checks whethere there are any deadlocks in the system (also used for property 1), is combined with liveness of nodes (nodes that do not have time passage are excluded from the liveness check)</comment>
+		</query>
+		<query>
+			<formula>lift_control(0).closing_doors --&gt; lift_control(0).idle</formula>
+			<comment>Property 1 (liveness): Is it possible to get to our target location and then become idle again? We are skipping the state where we have to wait for the door, that state will be deadlocked in its own right. The idle transition will be deadlocked because time does not pass and queries are passed on from other automata. 
+
+If one lift has a deadlock, the others do too.</comment>
+		</query>
+		<query>
+			<formula>lift_control(0).received_destination --&gt; lift_control(0).idle</formula>
+			<comment>Property 1 (liveness): Is it possible to receive a destination and then become idle again? This is a single transition, but it needs to be added to check whether a lift control has a deadlock. The idle transition will be deadlocked because time does not pass and queries are passed on from other automata. 
+
+If one lift has a deadlock, the others do too.</comment>
+		</query>
+		<query>
+			<formula>A[] not ((engine(0).moving_down or engine(0).moving_up) and (cabin_door(0).open or cabin_door(0).executing))</formula>
+			<comment>Property 2(safety): There should not be any situation (~EG(~f)) where the lift doors should be oopen whilst changing floors (check for all lifts, in case we accidentally send information to wrong lift). 
+As long as the cabin_door is closed, the protecting doors are closed as well. It would also be problematic if the doors are in the executing state (opening or closing). Applied for the first lift (0)
+
+!d and (Eu or Ed) == not doors open || (engine moving up or engine moving down)</comment>
+		</query>
+		<query>
+			<formula>A[] not ((engine(1).moving_down or engine(1).moving_up) and (cabin_door(1).open or cabin_door(1).executing))</formula>
+			<comment>Property 2(safety): There should not be any situation (~EG(~f)) where the lift doors should be oopen whilst changing floors (check for all lifts, in case we accidentally send information to wrong lift). 
+As long as the cabin_door is closed, the protecting doors are closed as well. It would also be problematic if the doors are in the executing state (opening or closing). Also applies to the second lift.
+
+!d and (Eu or Ed) == not doors open || (engine moving up or engine moving down)</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; is_full(0) and DGC(0).emptying_queue and current_floors[0] == get_peak_service_floor(0) and not current_floors[0] != get_peak_service_floor(0)</formula>
+			<comment>Property 3 (reachability): Elevators must be able to fill up their queue whilst being on the ground floor. The peak service floor is (initially) always set to 0, and the state where the FIFO (DGC) must be at is emptying_queue (ready for transit) and the queue of said lift must be full. 
+There must be at least one state that exists for this exact state with these variables, and they should exist for every elevator. The query has to be split for the different elevators, because it would be a very slim chance that both lifts are in the exact same position every time.
+
+The check to see whether it does not fill up on other floors is added to ensure that the queue never fills up above the peak service floor (ground floor).</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; is_full(1) and DGC(1).emptying_queue and current_floors[1] == get_peak_service_floor(1) and not current_floors[1] != get_peak_service_floor(1)</formula>
+			<comment>Property 3 (reachability): Elevators must be able to fill up their queue whilst being on the ground floor. The peak service floor is (initially) always set to 0, and the state where the FIFO (DGC) must be at is emptying_queue (ready for transit) and the queue of said lift must be full. 
+There must be at least one state that exists for this exact state with these variables, and they should exist for every elevator. The query has to be split for the different elevators, because it would be a very slim chance that both lifts are in the exact same position every time.
+
+The check to see whether it does not fill up on other floors is added to ensure that the queue never fills up above the peak service floor (ground floor).</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; lift_control(0).floor_reached and current_floors[0] == 0 and DGC(0).is_request_for_lift(0, 0)</formula>
+			<comment>Property 4 (Each floor above the ground floor can be reached, and only by the correct elevator.):
+
+Floor 0 only belongs to lift 0, along with floor 1. The irony of me calling the state "floor reached" before I knew about this assignment...</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; lift_control(0).floor_reached and current_floors[0] == 1 and DGC(0).is_request_for_lift(1, 0)</formula>
+			<comment>Property 4 (Each floor above the ground floor can be reached, and only by the correct elevator.):
+
+Floor 1 only belongs to lift 0, along with floor 0. The irony of me calling the state "floor reached" before I knew about this assignment...</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; not (lift_control(0).floor_reached and current_floors[0] == 2 and DGC(0).is_request_for_lift(2, 0))</formula>
+			<comment>Property 4 (Each floor above the ground floor can be reached, and only by the correct elevator.):
+
+Lift 0 should not be serving floor 2 and should not accept the request for floor 2, nor should it be possible to reach this floor (state). It is negated because this situation should never take place.</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; lift_control(1).floor_reached and current_floors[1] == 2 and DGC(0).is_request_for_lift(2, 1)</formula>
+			<comment>Property 4 (Each floor above the ground floor can be reached, and only by the correct elevator.):
+
+Floor 1 only belongs to lift 0, along with floor 0. The irony of me calling the state "floor reached" before I knew about this assignment...</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; not (lift_control(1).floor_reached and current_floors[1] == 0 and DGC(1).is_request_for_lift(0, 1))</formula>
+			<comment>Property 4 (Each floor above the ground floor can be reached, and only by the correct elevator.):
+
+Lift 0 should not be serving floor 0 and 1 and should not accept the request for floor 0 and 1, nor should it be possible to reach this floor (state). It is negated because this situation should never take place.</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; not (lift_control(1).floor_reached and current_floors[1] == 1 and DGC(1).is_request_for_lift(1, 1))</formula>
+			<comment>Property 4 (Each floor above the ground floor can be reached, and only by the correct elevator.):
+
+Lift 0 should not be serving floor 0 and 1 and should not accept the request for floor 0 and 1, nor should it be possible to reach this floor (state). It is negated because this situation should never take place.</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; lift_control(0).floor_reached and current_floors[0] == 0</formula>
+			<comment>Property 4 (Reachability sub section: the ground floor can be reached by any elevator): split for both elevators</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; lift_control(1).floor_reached and current_floors[1] == 0</formula>
+			<comment>Property 4 (Reachability sub section: the ground floor can be reached by any elevator): split for both elevators</comment>
+		</query>
+		<query>
+			<formula>DGC(0).emptying_queue --&gt; (DGC(0).empty_queue and is_empty(0) and lift_control(0).dest_floor == current_floors[0])</formula>
+			<comment>Property 5 (liveness, all floor requests are eventually served, i.e., the elevator reaches its destination.):  The lift must  be able to travel from emptying_queue to idle in the FIFO and have an empty queue in that state, whilst reaching the destination floor. 
+For simplicity sake, we assume that the lift has &gt; 0 when it is in the emptying_queue position (it cannot reach this node without having more than 0 entries).</comment>
+		</query>
+		<query>
+			<formula>DGC(1).emptying_queue --&gt; (DGC(1).empty_queue and is_empty(1) and lift_control(1).dest_floor == current_floors[1])</formula>
+			<comment>Property 5 (liveness, all floor requests are eventually served, i.e., the elevator reaches its destination.):  The lift must  be able to travel from emptying_queue to idle in the FIFO and have an empty queue in that state, whilst reaching the destination floor. 
+For simplicity sake, we assume that the lift has &gt; 0 when it is in the emptying_queue position (it cannot reach this node without having more than 0 entries).</comment>
+		</query>
+		<query>
+			<formula>forall(e : id_e) DGC(e).emptying_queue --&gt; (forall(e : id_e)(DGC(e).empty_queue and is_empty(e) and lift_control(e).dest_floor == current_floors[e]) or not (DGC(e).empty_queue and is_empty(e) and lift_control(e).dest_floor == current_floors[e]))</formula>
+			<comment>Property 5 automated: Check whether the lift can empty its queue and whether it could reach the floor or not (it could change based on the plan). If it does not serve the floor, the second part should be true.</comment>
+		</query>
+		<query>
+			<formula>lift_control(0).active_to_idle --&gt; lift_control(0).idle</formula>
+			<comment>Property 6 (liveness: whenever the elevator serves: doors are open, passengers can exit. Part 1, can we get from active_to_idle)</comment>
+		</query>
+		<query>
+			<formula>A[] not ((lift_control(0).closing_doors or lift_control(0).choose_direction or lift_control(0).change_floors or lift_control(0).floor_reached or lift_control(0).open_doors or lift_control(0).wait_for_doors) and cabin_door(0).open)</formula>
+			<comment>Property 6 (safety: whenever the elevator serves: doors are open, passengers can exit. Part 2, are the doors open in idle?)
+
+We should exclude the states where the door is closed, in order to keep the locations where the doors are open (and the passengers can exit). 
+The remaining states should have open doors: active_to_idle, idle, received_destination and closing_doors. This should globally be true, hence why it passes the safety check. 
+In other words, the doors should not be open in the states mentioned above.
+
+The passengers can exit, but the doors might instantly close in their face in real-life situations (I had to remove the wait for passenger to exit time for this assignment).
+
+Disclaimer: the doors could be closing in closing_doors state.
+
+</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; cabin_door(0).open and (lift_control(0).active_to_idle or lift_control(0).idle)</formula>
+			<comment>Property 6 (reachability): Do we reach the state eventually, where the doors are open and the passengers can exit?</comment>
+		</query>
+		<query>
+			<formula>lift_control(1).active_to_idle --&gt; lift_control(1).idle</formula>
+			<comment>Property 6 (liveness: whenever the elevator serves: doors are open, passengers can exit. Part 1, can we get from active_to_idle)</comment>
+		</query>
+		<query>
+			<formula>A[] not ((lift_control(1).closing_doors or lift_control(1).choose_direction or lift_control(1).change_floors or lift_control(1).floor_reached or lift_control(1).open_doors or lift_control(1).wait_for_doors) and cabin_door(1).open)</formula>
+			<comment>Property 6 (safety: whenever the elevator serves: doors are open, passengers can exit. Part 2, are the doors open in idle?)
+
+We should exclude the states where the door is closed, in order to keep the locations where the doors are open (and the passengers can exit). 
+The remaining states should have open doors: active_to_idle, idle, received_destination and closing_doors. This should globally be true, hence why it passes the safety check. 
+In other words, the doors should not be open in the states mentioned above.
+
+The passengers can exit, but the doors might instantly close in their face in real-life situations (I had to remove the wait for passenger to exit time for this assignment).
+
+Disclaimer: the doors could be closing in closing_doors state.</comment>
+		</query>
+		<query>
+			<formula>E&lt;&gt; cabin_door(1).open and (lift_control(1).active_to_idle or lift_control(1).idle)</formula>
+			<comment>Property 6 (reachability): Do we reach the state eventually, where the doors are open and the passengers can exit?</comment>
+		</query>
+		<query>
+			<formula>lift_control(0).closing_doors --&gt; lift_control(0).active_to_idle</formula>
+			<comment>Property 6 (liveness): can we also always reach the state where we open the doors?</comment>
+		</query>
+		<query>
+			<formula>lift_control(1).closing_doors --&gt; lift_control(1).active_to_idle</formula>
+			<comment>Property 6 (liveness): can we also always reach the state where we open the doors?</comment>
+		</query>
+	</queries>
+</nta>
